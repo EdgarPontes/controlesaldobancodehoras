@@ -1,15 +1,14 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { pgTable, varchar, text, timestamp, integer } from "drizzle-orm/pg-core";
 
 /**
  * Core user table backing auth flow.
- * Columns use camelCase to match both database fields and generated types.
  */
-export const users = mysqlTable("users", {
-  id: int("id").autoincrement().primaryKey(),
+export const users = pgTable("users", {
+  id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
   email: varchar("email", { length: 320 }).notNull().unique(),
   name: text("name"),
   passwordHash: varchar("passwordHash", { length: 255 }).notNull(),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  role: varchar("role", { length: 20 }).default("user").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -20,19 +19,19 @@ export type InsertUser = typeof users.$inferInsert;
 
 /**
  * Time entries for daily time tracking.
- * Stores up to 6 time entries per day (entry, lunch start, lunch end, exit, and 2 extras).
+ * Stores up to 6 time entries per day.
  */
-export const timeEntries = mysqlTable("timeEntries", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+export const timeEntries = pgTable("timeEntries", {
+  id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+  userId: integer("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
   date: varchar("date", { length: 10 }).notNull(), // YYYY-MM-DD format
-  time1: varchar("time1", { length: 8 }), // HH:MM:SS
+  time1: varchar("time1", { length: 8 }),
   time2: varchar("time2", { length: 8 }),
   time3: varchar("time3", { length: 8 }),
   time4: varchar("time4", { length: 8 }),
   time5: varchar("time5", { length: 8 }),
   time6: varchar("time6", { length: 8 }),
-  dayType: mysqlEnum("dayType", ["normal", "holiday", "leave", "justified_absence"]).default("normal"),
+  dayType: varchar("dayType", { length: 30 }).default("normal"),
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -43,13 +42,12 @@ export type InsertTimeEntry = typeof timeEntries.$inferInsert;
 
 /**
  * Work settings per user.
- * Stores configurable work hours (default: 8h weekdays, 4h Saturday).
  */
-export const workSettings = mysqlTable("workSettings", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
-  weekdayHours: int("weekdayHours").default(8).notNull(), // in hours
-  saturdayHours: int("saturdayHours").default(4).notNull(), // in hours
+export const workSettings = pgTable("workSettings", {
+  id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+  userId: integer("userId").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+  weekdayHours: integer("weekdayHours").default(8).notNull(),
+  saturdayHours: integer("saturdayHours").default(4).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -58,15 +56,14 @@ export type WorkSettings = typeof workSettings.$inferSelect;
 export type InsertWorkSettings = typeof workSettings.$inferInsert;
 
 /**
- * Monthly summary cache for performance.
- * Stores pre-calculated monthly totals.
+ * Monthly summary cache.
  */
-export const monthlySummary = mysqlTable("monthlySummary", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
-  year: int("year").notNull(),
-  month: int("month").notNull(), // 1-12
-  totalMinutes: int("totalMinutes").notNull(), // Total balance in minutes (can be negative)
+export const monthlySummary = pgTable("monthlySummary", {
+  id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+  userId: integer("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  year: integer("year").notNull(),
+  month: integer("month").notNull(),
+  totalMinutes: integer("totalMinutes").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
