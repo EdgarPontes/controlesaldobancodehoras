@@ -1,5 +1,5 @@
 import { COOKIE_NAME } from "@shared/const";
-import { getSessionCookieOptions } from "./_core/cookies";
+import { getSessionCookieOptions } from "./auth";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import * as db from "./db";
@@ -7,11 +7,56 @@ import { workSettings as workSettingsTable } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { importFromExcel } from "./importService";
+import { loginUser, registerUser } from "./auth";
 
 export const appRouter = router({
   system: systemRouter,
+
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
+
+    login: publicProcedure
+      .input(
+        z.object({
+          email: z.string().email(),
+          password: z.string().min(6),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const result = await loginUser(input.email, input.password);
+        if (!result) {
+          throw new Error("Email ou senha inválidos");
+        }
+
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, result.token, {
+          ...cookieOptions,
+          maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
+        });
+
+        return result.user;
+      }),
+
+    register: publicProcedure
+      .input(
+        z.object({
+          email: z.string().email(),
+          password: z.string().min(6),
+          name: z.string().min(1),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const result = await registerUser(input.email, input.password, input.name);
+
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, result.token, {
+          ...cookieOptions,
+          maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
+        });
+
+        return result.user;
+      }),
+
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });

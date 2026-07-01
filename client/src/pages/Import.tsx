@@ -1,150 +1,138 @@
-import { useAuth } from "@/_core/hooks/useAuth";
+import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useLocation } from "wouter";
-import { useState } from "react";
-import { ArrowLeft, Upload } from "lucide-react";
-import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { useState, useCallback } from "react";
+import { ArrowLeft, Upload, FileSpreadsheet } from "lucide-react";
+import { toast } from "sonner";
 
 export default function Import() {
-  const { user } = useAuth();
   const [, setLocation] = useLocation();
-  const [isLoading, setIsLoading] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Acesso restrito</p>
-      </div>
-    );
-  }
-
-  const uploadExcel = trpc.import.uploadExcel.useMutation({
+  const importMutation = trpc.import.uploadExcel.useMutation({
     onSuccess: (result) => {
-      setIsLoading(false);
-      if (result.success) {
-        toast.success(`Importação concluída! ${result.importedRows} registros importados.`);
-        if (result.errors.length > 0) {
-          toast.warning(`${result.errors.length} erros encontrados durante a importação.`);
-        }
-        setTimeout(() => setLocation("/"), 1500);
-      } else {
-        toast.error("Erro ao importar: " + result.errors.join(", "));
-      }
+      toast.success(`Importados ${result.imported} registros com sucesso!`);
+      setIsUploading(false);
+      setFile(null);
+      // Redirect to dashboard after successful import
+      setTimeout(() => setLocation("/"), 1500);
     },
     onError: (error) => {
-      setIsLoading(false);
-      toast.error("Erro ao importar arquivo: " + error.message);
+      toast.error(error.message);
+      setIsUploading(false);
     },
   });
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+    }
+  }, []);
 
-    if (!file.name.endsWith(".xlsx")) {
-      toast.error("Por favor, selecione um arquivo .xlsx");
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!file) {
+      toast.error("Selecione um arquivo Excel");
       return;
     }
 
-    setIsLoading(true);
-    const reader = new FileReader();
-    
-    reader.onload = async () => {
-      try {
-        const base64String = reader.result as string;
-        // Remove the data URL prefix
-        const base64Data = base64String.includes(",") 
-          ? base64String.split(",")[1] 
-          : base64String;
-        
-        toast.success("Importação iniciada. Isso pode levar alguns minutos...");
-        await uploadExcel.mutateAsync({ fileData: base64Data });
-      } catch (error) {
-        toast.error("Erro ao processar arquivo: " + (error instanceof Error ? error.message : "Erro desconhecido"));
-        setIsLoading(false);
-      }
-    };
-    
-    reader.onerror = () => {
+    setIsUploading(true);
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const base64 = btoa(
+        new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
+      );
+
+      await importMutation.mutateAsync({ fileData: base64 });
+    } catch (error) {
       toast.error("Erro ao ler arquivo");
-      setIsLoading(false);
-    };
-    
-    reader.readAsDataURL(file)
-  };
+      setIsUploading(false);
+    }
+  }, [file, importMutation]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setLocation("/settings")}
-            className="rounded-full"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Importar Dados</h1>
-            <p className="text-slate-600 dark:text-slate-400 mt-1">
-              Carregue sua planilha de controle de ponto
-            </p>
+    <DashboardLayout>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+        <div className="container mx-auto px-4 py-8">
+          {/* Header */}
+          <div className="flex items-center gap-4 mb-8">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setLocation("/")}
+              className="rounded-full"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Importar Dados</h1>
+              <p className="text-slate-600 dark:text-slate-400 mt-1">Importe seus registros históricos de ponto</p>
+            </div>
           </div>
-        </div>
 
-        {/* Import Card */}
-        <div className="max-w-2xl">
-          <Card className="border-0 shadow-sm">
+          {/* Import Card */}
+          <Card className="border-0 shadow-sm max-w-2xl">
             <CardHeader>
-              <CardTitle>Selecione seu arquivo</CardTitle>
+              <CardTitle>Importar Planilha Excel</CardTitle>
               <CardDescription>
-                Importe um arquivo .xlsx com seus registros de ponto históricos
+                Selecione um arquivo Excel (.xlsx) com seus registros de ponto para importar.
+                O arquivo deve conter as colunas: Data, Entrada 1, Saída 1, Entrada 2, Saída 2, etc.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg p-8 text-center">
-                <Upload className="h-12 w-12 mx-auto text-slate-400 mb-4" />
-                <p className="text-sm font-medium text-slate-900 dark:text-white mb-2">
-                  Clique para selecionar ou arraste um arquivo
-                </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-                  Apenas arquivos .xlsx são aceitos
-                </p>
-                <input
-                  type="file"
-                  accept=".xlsx"
-                  onChange={handleFileUpload}
-                  disabled={isLoading}
-                  className="hidden"
-                  id="file-upload"
-                />
-                <label htmlFor="file-upload">
-                  <Button
-                    asChild
-                    disabled={isLoading}
-                    className="cursor-pointer"
-                  >
-                    <span>
-                      {isLoading ? "Importando..." : "Selecionar Arquivo"}
-                    </span>
-                  </Button>
-                </label>
-              </div>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="excel-file" className="text-sm font-medium">
+                    Arquivo Excel
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="excel-file"
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={handleFileChange}
+                      disabled={isUploading}
+                      className="cursor-pointer"
+                    />
+                  </div>
+                  {file && (
+                    <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                      <FileSpreadsheet className="h-4 w-4" />
+                      <span>{file.name}</span>
+                    </div>
+                  )}
+                </div>
 
-              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                <p className="text-sm text-blue-900 dark:text-blue-200">
-                  <strong>Dica:</strong> O arquivo deve conter as colunas: Data, Hora Entrada, Hora Saída, etc.
-                  Você pode usar a planilha de exemplo fornecida como referência.
-                </p>
-              </div>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={!file || isUploading}
+                >
+                  {isUploading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Importando...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Importar Arquivo
+                    </>
+                  )}
+                </Button>
+              </form>
             </CardContent>
           </Card>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

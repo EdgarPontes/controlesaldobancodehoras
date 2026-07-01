@@ -1,16 +1,21 @@
-version: "3.9"
+version: "3.8"
 
 services:
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: controle-ponto
     ports:
       - "3000:3000"
-    env_file:
-      - .env
     environment:
       - NODE_ENV=production
       - PORT=3000
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/trpc/system.health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

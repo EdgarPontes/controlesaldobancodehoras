@@ -3,7 +3,6 @@ import { drizzle as drizzleMysql } from "drizzle-orm/mysql2";
 import { drizzle as drizzlePostgres } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { InsertUser, users, timeEntries, workSettings, monthlySummary, InsertTimeEntry } from "../drizzle/schema";
-import { ENV } from './_core/env';
 
 let _db: any = null;
 
@@ -37,9 +36,48 @@ export async function getDb() {
   return _db;
 }
 
+// ── User queries ──────────────────────────────────────────────────────────
+
+export async function createUser(user: { email: string; name: string | null; passwordHash: string; role: string }): Promise<any> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(users).values({
+    email: user.email,
+    name: user.name,
+    passwordHash: user.passwordHash,
+    role: user.role as "user" | "admin",
+  });
+
+  // Get the newly created user
+  const created = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, user.email))
+    .limit(1);
+
+  return created[0];
+}
+
+export async function getUserById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
 export async function upsertUser(user: InsertUser): Promise<void> {
-  if (!user.openId) {
-    throw new Error("User openId is required for upsert");
+  if (!user.email) {
+    throw new Error("User email is required for upsert");
   }
 
   const db = await getDb();
@@ -49,56 +87,25 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   }
 
   try {
-    const values: InsertUser = {
-      openId: user.openId,
-    };
-    const updateSet: Record<string, unknown> = {};
-
-    const textFields = ["name", "email", "loginMethod"] as const;
-    type TextField = (typeof textFields)[number];
-
-    const assignNullable = (field: TextField) => {
-      const value = user[field];
-      if (value === undefined) return;
-      const normalized = value ?? null;
-      values[field] = normalized;
-      updateSet[field] = normalized;
+    const values: any = {
+      email: user.email,
     };
 
-    textFields.forEach(assignNullable);
-
-    if (user.lastSignedIn !== undefined) {
-      values.lastSignedIn = user.lastSignedIn;
-      updateSet.lastSignedIn = user.lastSignedIn;
-    }
-    if (user.role !== undefined) {
-      values.role = user.role;
-      updateSet.role = user.role;
-    } else if (user.openId === ENV.ownerOpenId) {
-      values.role = 'admin';
-      updateSet.role = 'admin';
-    }
-
-    if (!values.lastSignedIn) {
-      values.lastSignedIn = new Date();
-    }
-
-    if (Object.keys(updateSet).length === 0) {
-      updateSet.lastSignedIn = new Date();
-    }
+    if (user.name !== undefined) values.name = user.name;
+    if (user.passwordHash !== undefined) values.passwordHash = user.passwordHash;
+    if (user.role !== undefined) values.role = user.role;
+    if (user.lastSignedIn !== undefined) values.lastSignedIn = user.lastSignedIn;
 
     const dbType = getDatabaseType(process.env.DATABASE_URL || "");
     
     if (dbType === "postgres") {
-      // PostgreSQL upsert using ON CONFLICT
       await db.insert(users).values(values).onConflictDoUpdate({
-        target: users.openId,
-        set: updateSet,
+        target: users.email,
+        set: values,
       });
     } else {
-      // MySQL upsert using ON DUPLICATE KEY UPDATE
       await db.insert(users).values(values).onDuplicateKeyUpdate({
-        set: updateSet,
+        set: values,
       });
     }
   } catch (error) {
@@ -107,36 +114,16 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   }
 }
 
-export async function getUserByOpenId(openId: string) {
-  const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot get user: database not available");
-    return undefined;
-  }
+// ── Time entries queries ───────────────────────────────────────────────────
 
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-
-  return result.length > 0 ? result[0] : undefined;
-}
-
-// Time entries queries
 export async function getTimeEntriesByMonth(userId: number, year: number, month: number) {
   const db = await getDb();
   if (!db) return [];
 
-  const startDate = new Date(year, month - 1, 1);
-  const endDate = new Date(year, month, 0);
-
-  const startDateStr = startDate.toISOString().split('T')[0];
-  const endDateStr = endDate.toISOString().split('T')[0];
-
   return await db
     .select()
     .from(timeEntries)
-    .where(
-      eq(timeEntries.userId, userId)
-    );
-  // Note: Date range filtering should be done in application layer or with proper SQL syntax
+    .where(eq(timeEntries.userId, userId));
 }
 
 export async function upsertTimeEntry(entry: InsertTimeEntry) {
@@ -223,7 +210,6 @@ export async function getOrCreateWorkSettings(userId: number) {
   let settings = await getWorkSettings(userId);
   
   if (!settings) {
-    // Create default settings
     const defaultSettings = {
       userId,
       weekdayHours: 8,
@@ -267,9 +253,7 @@ export async function getTimeEntriesByDateRange(userId: number, startDate: strin
   return await db
     .select()
     .from(timeEntries)
-    .where(
-      eq(timeEntries.userId, userId)
-    );
+    .where(eq(timeEntries.userId, userId));
 }
 
 export async function getOrCreateTimeEntry(userId: number, date: string) {
