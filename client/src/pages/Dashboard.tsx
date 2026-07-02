@@ -236,7 +236,6 @@ export default function Dashboard() {
           {/* Header */}
           <div className="flex justify-between items-center mb-8">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Controle de Ponto</h1>
               <p className="text-slate-600 dark:text-slate-400 mt-1">Bem-vindo, {user.name}</p>
             </div>
             <Button
