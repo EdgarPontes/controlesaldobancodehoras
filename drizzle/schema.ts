@@ -1,4 +1,4 @@
-import { pgTable, varchar, text, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, varchar, text, timestamp, integer, uniqueIndex } from "drizzle-orm/pg-core";
 
 /**
  * Core user table backing auth flow.
@@ -21,21 +21,27 @@ export type InsertUser = typeof users.$inferInsert;
  * Time entries for daily time tracking.
  * Stores up to 6 time entries per day.
  */
-export const timeEntries = pgTable("timeEntries", {
-  id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
-  userId: integer("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
-  date: varchar("date", { length: 10 }).notNull(), // YYYY-MM-DD format
-  time1: varchar("time1", { length: 8 }),
-  time2: varchar("time2", { length: 8 }),
-  time3: varchar("time3", { length: 8 }),
-  time4: varchar("time4", { length: 8 }),
-  time5: varchar("time5", { length: 8 }),
-  time6: varchar("time6", { length: 8 }),
-  dayType: varchar("dayType", { length: 30 }).default("normal"),
-  notes: text("notes"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
-});
+export const timeEntries = pgTable(
+  "timeEntries",
+  {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    userId: integer("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+    date: varchar("date", { length: 10 }).notNull(), // YYYY-MM-DD format
+    time1: varchar("time1", { length: 8 }),
+    time2: varchar("time2", { length: 8 }),
+    time3: varchar("time3", { length: 8 }),
+    time4: varchar("time4", { length: 8 }),
+    time5: varchar("time5", { length: 8 }),
+    time6: varchar("time6", { length: 8 }),
+    dayType: varchar("dayType", { length: 30 }).default("normal"),
+    notes: text("notes"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+  },
+  table => ({
+    userDateUnique: uniqueIndex("timeEntries_userId_date_unique").on(table.userId, table.date),
+  })
+);
 
 export type TimeEntry = typeof timeEntries.$inferSelect;
 export type InsertTimeEntry = typeof timeEntries.$inferInsert;

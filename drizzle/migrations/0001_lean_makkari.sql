@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "timeEntries_userId_date_unique" ON "timeEntries" USING btree ("userId","date");
