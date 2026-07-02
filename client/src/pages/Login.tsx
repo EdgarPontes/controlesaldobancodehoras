@@ -11,6 +11,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 export default function Login() {
   const [, setLocation] = useLocation();
   const { user, loading: authLoading } = useAuth();
+  const utils = trpc.useUtils();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,9 +25,10 @@ export default function Login() {
   }, [user, authLoading, setLocation]);
 
   const loginMutation = trpc.auth.login.useMutation({
-    onSuccess: () => {
+    onSuccess: (user) => {
       toast.success("Login realizado com sucesso!");
-      setLocation("/");
+      utils.auth.me.setData(undefined, user);
+      setLocation("/dashboard");
     },
     onError: (error) => {
       toast.error(error.message);
@@ -36,7 +38,7 @@ export default function Login() {
   const registerMutation = trpc.auth.register.useMutation({
     onSuccess: () => {
       toast.success("Conta criada com sucesso!");
-      setLocation("/");
+      setLocation("/login");
     },
     onError: (error) => {
       toast.error(error.message);
