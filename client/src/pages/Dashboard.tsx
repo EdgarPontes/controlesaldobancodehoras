@@ -157,8 +157,8 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  const year = currentDate.getUTCFullYear();
-  const month = currentDate.getUTCMonth() + 1;
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth() + 1;
 
   // Fetch work settings
   const { data: workSettings } = trpc.workSettings.get.useQuery(undefined, {
@@ -209,20 +209,20 @@ export default function Dashboard() {
     );
   }
 
-  const monthName = new Date(Date.UTC(year, month - 1)).toLocaleString("pt-BR", {
+  const monthName = new Date(year, month - 1, 1).toLocaleString("pt-BR", {
     month: "long",
     year: "numeric",
   });
 
   const handlePrevMonth = () => {
     const newDate = new Date(currentDate);
-    newDate.setUTCMonth(newDate.getUTCMonth() - 1);
+    newDate.setMonth(newDate.getMonth() - 1);
     setCurrentDate(newDate);
   };
 
   const handleNextMonth = () => {
     const newDate = new Date(currentDate);
-    newDate.setUTCMonth(newDate.getUTCMonth() + 1);
+    newDate.setMonth(newDate.getMonth() + 1);
     setCurrentDate(newDate);
   };
 
@@ -381,7 +381,7 @@ export default function Dashboard() {
                           className="flex justify-between items-center p-3 rounded-lg bg-slate-50 dark:bg-slate-900"
                         >
                           <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                            {new Date(Date.UTC(summary.year, summary.month - 1)).toLocaleString(
+                            {new Date(summary.year, summary.month - 1, 1).toLocaleString(
                               "pt-BR",
                               { month: "long", year: "numeric" }
                             )}

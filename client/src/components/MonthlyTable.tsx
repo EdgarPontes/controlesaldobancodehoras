@@ -12,6 +12,72 @@ function formatBalance(minutes: number): string {
   return `${sign}${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
 }
 
+// Time calculation helpers (mirror server logic)
+function timeToMinutes(timeStr: string | null | undefined): number | null {
+  if (!timeStr || typeof timeStr !== "string") return null;
+  const trimmed = timeStr.trim();
+  if (!trimmed) return null;
+  const parts = trimmed.split(":");
+  if (parts.length < 2 || parts.length > 3) return null;
+  const hours = parseInt(parts[0], 10);
+  const minutes = parseInt(parts[1], 10);
+  const seconds = parts.length === 3 ? parseInt(parts[2], 10) : 0;
+  if (isNaN(hours) || isNaN(minutes) || isNaN(seconds)) return null;
+  if (hours < 0 || minutes < 0 || seconds < 0) return null;
+  if (hours > 24 || minutes >= 60 || seconds >= 60) return null;
+  return hours * 60 + minutes + Math.round(seconds / 60);
+}
+
+function calculateWorkedMinutes(
+  time1: string | null | undefined,
+  time2: string | null | undefined,
+  time3: string | null | undefined,
+  time4: string | null | undefined,
+  time5: string | null | undefined,
+  time6: string | null | undefined
+): number {
+  let totalMinutes = 0;
+  if (time1 && time2) {
+    const t1 = timeToMinutes(time1);
+    const t2 = timeToMinutes(time2);
+    if (t1 !== null && t2 !== null && t2 > t1) totalMinutes += t2 - t1;
+  }
+  if (time3 && time4) {
+    const t3 = timeToMinutes(time3);
+    const t4 = timeToMinutes(time4);
+    if (t3 !== null && t4 !== null && t4 > t3) totalMinutes += t4 - t3;
+  }
+  if (time5 && time6) {
+    const t5 = timeToMinutes(time5);
+    const t6 = timeToMinutes(time6);
+    if (t5 !== null && t6 !== null && t6 > t5) totalMinutes += t6 - t5;
+  }
+  return totalMinutes;
+}
+
+function getDayOfWeekUTC(dateStr: string): number {
+  return new Date(dateStr + "T00:00:00Z").getUTCDay();
+}
+
+function isSaturday(dateStr: string): boolean {
+  return getDayOfWeekUTC(dateStr) === 6;
+}
+
+function isSunday(dateStr: string): boolean {
+  return getDayOfWeekUTC(dateStr) === 0;
+}
+
+function getExpectedMinutes(dateStr: string, weekdayHours: number, saturdayHours: number): number {
+  if (isSunday(dateStr)) return 0;
+  const hours = isSaturday(dateStr) ? saturdayHours : weekdayHours;
+  return hours * 60;
+}
+
+function calculateDailyBalance(workedMinutes: number, expectedMinutes: number, dayType: string): number {
+  if (dayType !== "normal") return 0;
+  return workedMinutes - expectedMinutes;
+}
+
 function getBalanceStatus(minutes: number): "positive" | "negative" | "neutral" {
   if (minutes > 0) return "positive";
   if (minutes < 0) return "negative";
@@ -121,11 +187,15 @@ export function MonthlyTable({
           const dayOfWeek = new Date(dateStr + "T00:00:00Z").getUTCDay();
           const isSunday = dayOfWeek === 0;
 
-          // Calculate balance for this day (placeholder)
+          // Calculate balance for this day
           let dayBalance = 0;
-          if (entry && entry.dayType === "normal") {
-            // Full calculation happens on server; this is a placeholder for UI
-            dayBalance = 0;
+          let workedMinutes = 0;
+          let expectedMinutes = 0;
+          const dayType = entry?.dayType || "normal";
+          if (entry) {
+            workedMinutes = calculateWorkedMinutes(entry.time1, entry.time2, entry.time3, entry.time4, entry.time5, entry.time6);
+            expectedMinutes = getExpectedMinutes(dateStr, weekdayHours, saturdayHours);
+            dayBalance = calculateDailyBalance(workedMinutes, expectedMinutes, dayType);
           }
 
           const balanceStatus = getBalanceStatus(dayBalance);
