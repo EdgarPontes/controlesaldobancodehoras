@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, and, gte, lte } from "drizzle-orm";
 import { drizzle as drizzleMysql } from "drizzle-orm/mysql2";
 import { drizzle as drizzlePostgres } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -133,15 +133,40 @@ export async function upsertTimeEntry(entry: InsertTimeEntry) {
   const dbType = getDatabaseType(process.env.DATABASE_URL || "");
   
   if (dbType === "postgres") {
-    return await db.insert(timeEntries).values(entry).onConflictDoUpdate({
+    await db.insert(timeEntries).values(entry).onConflictDoUpdate({
       target: [timeEntries.userId, timeEntries.date],
       set: entry,
     });
   } else {
-    return await db.insert(timeEntries).values(entry).onDuplicateKeyUpdate({
+    await db.insert(timeEntries).values(entry).onDuplicateKeyUpdate({
       set: entry,
     });
   }
+
+  // Update monthly summary after time entry is upserted
+  const dateStr = entry.date;
+  const [year, month] = dateStr.split("-").slice(0, 2).map(Number);
+  
+  // Get all entries for the month to recalculate
+  const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
+  const endDate = `${year}-${String(month).padStart(2, "0")}-31`;
+  const monthEntries = await getTimeEntriesByDateRange(entry.userId, startDate, endDate);
+  
+  const userSettings = await getWorkSettings(entry.userId);
+  if (!userSettings) return;
+
+  // Import calculation functions
+  const { calculateMonthlyBalance } = require("./balanceCalculator");
+  
+  const monthlyBalance = calculateMonthlyBalance(year, month, monthEntries, userSettings);
+  
+  // Upsert the monthly summary
+  await upsertMonthlySummary({
+    userId: entry.userId,
+    year,
+    month,
+    totalMinutes: monthlyBalance.totalBalanceMinutes,
+  });
 }
 
 export async function getWorkSettings(userId: number) {
@@ -179,6 +204,8 @@ export async function getMonthlySummaries(userId: number) {
   const db = await getDb();
   if (!db) return [];
 
+  await refreshMonthlySummaries(userId);
+
   return await db
     .select()
     .from(monthlySummary)
@@ -189,18 +216,32 @@ export async function upsertMonthlySummary(summary: any) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const dbType = getDatabaseType(process.env.DATABASE_URL || "");
-  
-  if (dbType === "postgres") {
-    return await db.insert(monthlySummary).values(summary).onConflictDoUpdate({
-      target: [monthlySummary.userId, monthlySummary.year, monthlySummary.month],
-      set: summary,
-    });
-  } else {
-    return await db.insert(monthlySummary).values(summary).onDuplicateKeyUpdate({
-      set: summary,
-    });
+  const existing = await db
+    .select()
+    .from(monthlySummary)
+    .where(
+      eq(monthlySummary.userId, summary.userId) &&
+      eq(monthlySummary.year, summary.year) &&
+      eq(monthlySummary.month, summary.month)
+    )
+    .limit(1);
+
+  if (existing.length > 0) {
+    return await db
+      .update(monthlySummary)
+      .set({
+        totalMinutes: summary.totalMinutes,
+        updatedAt: new Date(),
+      })
+      .where(eq(monthlySummary.id, existing[0].id));
   }
+
+  return await db.insert(monthlySummary).values({
+    userId: summary.userId,
+    year: summary.year,
+    month: summary.month,
+    totalMinutes: summary.totalMinutes,
+  });
 }
 
 export async function getOrCreateWorkSettings(userId: number) {
@@ -225,6 +266,8 @@ export async function getOrCreateWorkSettings(userId: number) {
 export async function getMonthlySummary(userId: number, year: number, month: number) {
   const db = await getDb();
   if (!db) return null;
+
+  await refreshMonthlySummaries(userId);
 
   const result = await db
     .select()
@@ -253,7 +296,13 @@ export async function getTimeEntriesByDateRange(userId: number, startDate: strin
   return await db
     .select()
     .from(timeEntries)
-    .where(eq(timeEntries.userId, userId));
+    .where(
+      and(
+        eq(timeEntries.userId, userId),
+        gte(timeEntries.date, startDate),
+        lte(timeEntries.date, endDate)
+      )
+    );
 }
 
 export async function getOrCreateTimeEntry(userId: number, date: string) {
@@ -289,4 +338,50 @@ export async function getOrCreateTimeEntry(userId: number, date: string) {
 
   await upsertTimeEntry(newEntry);
   return newEntry;
+}
+
+async function refreshMonthlySummaries(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const entries = await db
+    .select()
+    .from(timeEntries)
+    .where(eq(timeEntries.userId, userId));
+
+  const workSettings = await getWorkSettings(userId);
+  if (!workSettings) return [];
+
+  const entriesByMonth = new Map<string, InsertTimeEntry[]>();
+  entries.forEach((entry: any) => {
+    const [year, month] = entry.date.split("-").slice(0, 2);
+    const key = `${year}-${month}`;
+    const monthEntries = entriesByMonth.get(key) || [];
+    monthEntries.push(entry);
+    entriesByMonth.set(key, monthEntries);
+  });
+
+  const { calculateMonthlyBalance } = require("./balanceCalculator");
+
+  const summaries: Array<{ userId: number; year: number; month: number; totalMinutes: number }> = [];
+  for (const [key, monthEntries] of Array.from(entriesByMonth.entries())) {
+    const [year, month] = key.split("-").map(Number);
+    const monthlyBalance = calculateMonthlyBalance(year, month, monthEntries, workSettings);
+
+    await upsertMonthlySummary({
+      userId,
+      year,
+      month,
+      totalMinutes: monthlyBalance.totalBalanceMinutes,
+    });
+
+    summaries.push({
+      userId,
+      year,
+      month,
+      totalMinutes: monthlyBalance.totalBalanceMinutes,
+    });
+  }
+
+  return summaries;
 }

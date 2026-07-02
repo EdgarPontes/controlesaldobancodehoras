@@ -74,23 +74,30 @@ export function calculateMonthlyBalance(
   entries: TimeEntry[],
   workSettings: WorkSettings
 ): MonthlyBalance {
-  const daysInMonth = getDaysInMonth(year, month);
   const days: DayBalance[] = [];
 
   let totalBalanceMinutes = 0;
   let totalWorkedMinutes = 0;
   let totalExpectedMinutes = 0;
 
-  // Create a map of entries by date for quick lookup
   const entriesByDate = new Map<string, TimeEntry>();
   entries.forEach(entry => {
     entriesByDate.set(entry.date, entry);
   });
 
-  // Calculate balance for each day in the month
-  for (let day = 1; day <= daysInMonth; day++) {
-    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const relevantDates = entries
+    .map(entry => entry.date)
+    .sort((a, b) => a.localeCompare(b));
+
+  relevantDates.forEach(dateStr => {
     const entry = entriesByDate.get(dateStr) || null;
+    const hasAnyTime = [entry?.time1, entry?.time2, entry?.time3, entry?.time4, entry?.time5, entry?.time6].some(Boolean);
+    const hasSpecialDayType = entry?.dayType && entry.dayType !== "normal";
+    const hasNotes = Boolean(entry?.notes);
+
+    if (!hasAnyTime && !hasSpecialDayType && !hasNotes) {
+      return;
+    }
 
     const dayBalance = calculateDayBalance(entry, dateStr, workSettings);
     days.push(dayBalance);
@@ -98,7 +105,7 @@ export function calculateMonthlyBalance(
     totalBalanceMinutes += dayBalance.balanceMinutes;
     totalWorkedMinutes += dayBalance.workedMinutes;
     totalExpectedMinutes += dayBalance.expectedMinutes;
-  }
+  });
 
   return {
     year,

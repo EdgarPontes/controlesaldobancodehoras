@@ -24,7 +24,132 @@ function getBalanceStatus(minutes: number): "positive" | "negative" | "neutral" 
 }
 
 function calculateMonthlyBalance(year: number, month: number, entries: any[], workSettings: any) {
-  return { totalBalanceMinutes: 0 };
+  // Helper functions for calculations
+  function timeToMinutes(timeStr: string | null | undefined): number | null {
+    if (!timeStr || typeof timeStr !== "string") return null;
+    const trimmed = timeStr.trim();
+    if (!trimmed) return null;
+    const parts = trimmed.split(":");
+    if (parts.length < 2 || parts.length > 3) return null;
+    try {
+      const hours = parseInt(parts[0], 10);
+      const minutes = parseInt(parts[1], 10);
+      const seconds = parts.length === 3 ? parseInt(parts[2], 10) : 0;
+      if (isNaN(hours) || isNaN(minutes) || isNaN(seconds)) return null;
+      if (hours < 0 || minutes < 0 || seconds < 0) return null;
+      if (hours > 24 || minutes >= 60 || seconds >= 60) return null;
+      return hours * 60 + minutes + Math.round(seconds / 60);
+    } catch {
+      return null;
+    }
+  }
+
+  function calculateWorkedMinutes(t1: string | null | undefined, t2: string | null | undefined, t3: string | null | undefined, t4: string | null | undefined, t5: string | null | undefined, t6: string | null | undefined): number {
+    let totalMinutes = 0;
+    if (t1 && t2) {
+      const tm1 = timeToMinutes(t1);
+      const tm2 = timeToMinutes(t2);
+      if (tm1 !== null && tm2 !== null && tm2 > tm1) {
+        totalMinutes += tm2 - tm1;
+      }
+    }
+    if (t3 && t4) {
+      const tm3 = timeToMinutes(t3);
+      const tm4 = timeToMinutes(t4);
+      if (tm3 !== null && tm4 !== null && tm4 > tm3) {
+        totalMinutes += tm4 - tm3;
+      }
+    }
+    if (t5 && t6) {
+      const tm5 = timeToMinutes(t5);
+      const tm6 = timeToMinutes(t6);
+      if (tm5 !== null && tm6 !== null && tm6 > tm5) {
+        totalMinutes += tm6 - tm5;
+      }
+    }
+    return totalMinutes;
+  }
+
+  function getDayOfWeek(dateStr: string): number {
+    const date = new Date(dateStr + "T00:00:00Z");
+    return date.getUTCDay();
+  }
+
+  function isSunday(dateStr: string): boolean {
+    return getDayOfWeek(dateStr) === 0;
+  }
+
+  function isSaturday(dateStr: string): boolean {
+    return getDayOfWeek(dateStr) === 6;
+  }
+
+  function getExpectedMinutes(dateStr: string, weekdayHours: number, saturdayHours: number): number {
+    if (isSunday(dateStr)) {
+      return 0;
+    }
+    const isSat = isSaturday(dateStr);
+    const hours = isSat ? saturdayHours : weekdayHours;
+    return hours * 60;
+  }
+
+  function getDaysInMonth(yr: number, mth: number): number {
+    return new Date(yr, mth, 0).getDate();
+  }
+
+  function calculateDailyBalance(workedMinutes: number, expectedMinutes: number, dayType: string): number {
+    if (dayType !== "normal") {
+      return 0;
+    }
+    return workedMinutes - expectedMinutes;
+  }
+
+  const daysInMonth = getDaysInMonth(year, month);
+  const days: any[] = [];
+  let totalBalanceMinutes = 0;
+  let totalWorkedMinutes = 0;
+  let totalExpectedMinutes = 0;
+
+  const entriesByDate = new Map<string, any>();
+  entries.forEach((entry: any) => {
+    entriesByDate.set(entry.date, entry);
+  });
+
+  const relevantDates = entries
+    .map((entry: any) => entry.date)
+    .sort((a: string, b: string) => a.localeCompare(b));
+
+  relevantDates.forEach((dateStr: string) => {
+    const entry = entriesByDate.get(dateStr) || null;
+    const hasAnyTime = [entry?.time1, entry?.time2, entry?.time3, entry?.time4, entry?.time5, entry?.time6].some(Boolean);
+    const hasSpecialDayType = entry?.dayType && entry.dayType !== "normal";
+    const hasNotes = Boolean(entry?.notes);
+
+    if (!hasAnyTime && !hasSpecialDayType && !hasNotes) {
+      return;
+    }
+
+    const workedMinutes = entry
+      ? calculateWorkedMinutes(entry.time1, entry.time2, entry.time3, entry.time4, entry.time5, entry.time6)
+      : 0;
+
+    const expectedMinutes = getExpectedMinutes(dateStr, workSettings.weekdayHours, workSettings.saturdayHours);
+    const dayType = entry?.dayType || "normal";
+    const balanceMinutes = calculateDailyBalance(workedMinutes, expectedMinutes, dayType);
+
+    days.push({ date: dateStr, balanceMinutes });
+    totalBalanceMinutes += balanceMinutes;
+    totalWorkedMinutes += workedMinutes;
+    totalExpectedMinutes += expectedMinutes;
+  });
+
+  return {
+    year,
+    month,
+    days,
+    totalBalanceMinutes,
+    totalWorkedMinutes,
+    totalExpectedMinutes,
+  };
 }
 
 export default function Dashboard() {
@@ -171,12 +296,30 @@ export default function Dashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-slate-900 dark:text-white">
-                  {formatBalance(0)}
-                </div>
-                <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
-                  Calculando...
-                </p>
+                {timeEntries && workSettings ? (() => {
+                  const monthBalance = calculateMonthlyBalance(year, month, timeEntries, workSettings);
+                  return (
+                    <>
+                      <div className={`text-3xl font-bold ${
+                        monthBalance.totalBalanceMinutes > 0
+                          ? "text-green-600 dark:text-green-400"
+                          : monthBalance.totalBalanceMinutes < 0
+                          ? "text-red-600 dark:text-red-400"
+                          : "text-slate-900 dark:text-white"
+                      }`}>
+                        {formatBalance(monthBalance.totalBalanceMinutes)}
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
+                        {timeEntries.length} registros
+                      </p>
+                    </>
+                  );
+                })() : (
+                  <>
+                    <div className="text-3xl font-bold text-slate-900 dark:text-white">{formatBalance(0)}</div>
+                    <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">Carregando...</p>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>

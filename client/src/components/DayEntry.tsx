@@ -82,6 +82,20 @@ export function DayEntry({
   const expectedMinutes = getExpectedMinutes(date, weekdayHours, saturdayHours);
   const balanceMinutes = dayType === "normal" ? workedMinutes - expectedMinutes : 0;
   const balanceStatus = getBalanceStatus(balanceMinutes);
+  
+  // Calculate extra hours (time5 to time6, or any overtime beyond 8 hours for the day)
+  let extraMinutes = 0;
+  if (time5 && time6) {
+    const t5 = parseInt(time5.split(":")[0]) * 60 + parseInt(time5.split(":")[1]);
+    const t6 = parseInt(time6.split(":")[0]) * 60 + parseInt(time6.split(":")[1]);
+    if (t6 > t5) {
+      extraMinutes = t6 - t5;
+    }
+  } else if (workedMinutes > expectedMinutes && expectedMinutes > 0) {
+    // If no explicit extra times, show the excess hours worked
+    extraMinutes = workedMinutes - expectedMinutes;
+  }
+  const extraStatus = getBalanceStatus(extraMinutes);
 
   const isSunday = dayOfWeek === 0;
 
@@ -187,18 +201,18 @@ export function DayEntry({
             <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-lg">
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  Saldo do dia:
+                  Horas Extras:
                 </span>
                 <span
                   className={`text-lg font-bold ${
-                    balanceStatus === "positive"
+                    extraStatus === "positive"
                       ? "text-green-600 dark:text-green-400"
-                      : balanceStatus === "negative"
+                      : extraStatus === "negative"
                       ? "text-red-600 dark:text-red-400"
                       : "text-slate-900 dark:text-white"
                   }`}
                 >
-                  {formatBalance(balanceMinutes)}
+                  {formatBalance(extraMinutes)}
                 </span>
               </div>
             </div>
