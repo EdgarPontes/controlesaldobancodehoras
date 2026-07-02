@@ -10,7 +10,7 @@ export const users = pgTable("users", {
   passwordHash: varchar("passwordHash", { length: 255 }).notNull(),
   role: varchar("role", { length: 20 }).default("user").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
 });
 
@@ -34,7 +34,7 @@ export const timeEntries = pgTable("timeEntries", {
   dayType: varchar("dayType", { length: 30 }).default("normal"),
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type TimeEntry = typeof timeEntries.$inferSelect;
@@ -49,7 +49,7 @@ export const workSettings = pgTable("workSettings", {
   weekdayHours: integer("weekdayHours").default(8).notNull(),
   saturdayHours: integer("saturdayHours").default(4).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type WorkSettings = typeof workSettings.$inferSelect;
@@ -65,7 +65,7 @@ export const monthlySummary = pgTable("monthlySummary", {
   month: integer("month").notNull(),
   totalMinutes: integer("totalMinutes").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type MonthlySummary = typeof monthlySummary.$inferSelect;

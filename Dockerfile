@@ -49,6 +49,6 @@ RUN addgroup --system --gid 1001 nodejs && \
 
 USER nodejs
 
-EXPOSE 3000
+EXPOSE 8000
 
 CMD ["node", "dist/index.js"]
