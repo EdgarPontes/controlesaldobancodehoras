@@ -1,7 +1,8 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { DayEntry } from "./DayEntry";
+import { QuickTimeModal } from "./QuickTimeModal";
 import type { TimeEntry } from "../../../drizzle/schema";
 
 // Utility functions (duplicated from server to avoid server imports in client)
@@ -108,6 +109,9 @@ export function MonthlyTable({
   semesterBalance,
 }: MonthlyTableProps) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [quickTimeDate, setQuickTimeDate] = useState<string | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isLongPress = useRef(false);
 
   // Create a map of entries by date
   const entriesByDate = new Map<string, TimeEntry>();
@@ -131,9 +135,29 @@ export function MonthlyTable({
   }
 
   const handleDayClick = (day: number) => {
+    if (isLongPress.current) {
+      isLongPress.current = false;
+      return;
+    }
     const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     setSelectedDate(dateStr);
   };
+
+  const startLongPress = useCallback((day: number) => {
+    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    isLongPress.current = false;
+    longPressTimer.current = setTimeout(() => {
+      isLongPress.current = true;
+      setQuickTimeDate(dateStr);
+    }, 3000);
+  }, [year, month]);
+
+  const cancelLongPress = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
 
   if (selectedDate) {
     const editingEntry = entriesByDate.get(selectedDate);
@@ -209,15 +233,21 @@ export function MonthlyTable({
               key={day}
               variant="outline"
               onClick={() => handleDayClick(day)}
+              onMouseDown={() => { if (!isSunday) startLongPress(day); }}
+              onMouseUp={cancelLongPress}
+              onMouseLeave={cancelLongPress}
+              onTouchStart={() => { if (!isSunday) startLongPress(day); }}
+              onTouchEnd={cancelLongPress}
+              onTouchMove={cancelLongPress}
               className={`h-full min-h-0 w-full p-0 flex flex-col items-center justify-center text-xs rounded-lg transition-colors ${isSunday
-                  ? "bg-slate-100 dark:bg-slate-800 cursor-default"
-                  : entry
-                    ? balanceStatus === "positive"
-                      ? "bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800"
-                      : balanceStatus === "negative"
-                        ? "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800"
-                        : "bg-slate-50 dark:bg-slate-900"
-                    : ""
+                ? "bg-slate-100 dark:bg-slate-800 cursor-default"
+                : entry
+                  ? balanceStatus === "positive"
+                    ? "bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800"
+                    : balanceStatus === "negative"
+                      ? "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800"
+                      : "bg-slate-50 dark:bg-slate-900"
+                  : ""
                 }`}
               disabled={isSunday}
             >
@@ -225,10 +255,10 @@ export function MonthlyTable({
               {entry && (
                 <div
                   className={`text-[10px] font-mono leading-tight ${balanceStatus === "positive"
-                      ? "text-green-600 dark:text-green-400"
-                      : balanceStatus === "negative"
-                        ? "text-red-600 dark:text-red-400"
-                        : "text-slate-600 dark:text-slate-400"
+                    ? "text-green-600 dark:text-green-400"
+                    : balanceStatus === "negative"
+                      ? "text-red-600 dark:text-red-400"
+                      : "text-slate-600 dark:text-slate-400"
                     }`}
                 >
                   {entry.dayType !== "normal" ? (
@@ -257,10 +287,10 @@ export function MonthlyTable({
           </span>
           <span
             className={`text-lg font-bold ${totalBalance > 0
-                ? "text-green-600 dark:text-green-400"
-                : totalBalance < 0
-                  ? "text-red-600 dark:text-red-400"
-                  : "text-slate-900 dark:text-white"
+              ? "text-green-600 dark:text-green-400"
+              : totalBalance < 0
+                ? "text-red-600 dark:text-red-400"
+                : "text-slate-900 dark:text-white"
               }`}
           >
             {formatBalance(totalBalance)}
@@ -274,10 +304,10 @@ export function MonthlyTable({
             </span>
             <span
               className={`text-base font-semibold ${semesterBalance > 0
-                  ? "text-green-600 dark:text-green-400"
-                  : semesterBalance < 0
-                    ? "text-red-600 dark:text-red-400"
-                    : "text-slate-900 dark:text-white"
+                ? "text-green-600 dark:text-green-400"
+                : semesterBalance < 0
+                  ? "text-red-600 dark:text-red-400"
+                  : "text-slate-900 dark:text-white"
                 }`}
             >
               {formatBalance(semesterBalance)}
@@ -285,6 +315,16 @@ export function MonthlyTable({
           </div>
         )}
       </div>
+
+      {/* Quick Time Modal */}
+      <QuickTimeModal
+        date={quickTimeDate || ""}
+        open={!!quickTimeDate}
+        onClose={() => {
+          setQuickTimeDate(null);
+          cancelLongPress();
+        }}
+      />
     </div>
   );
 }
