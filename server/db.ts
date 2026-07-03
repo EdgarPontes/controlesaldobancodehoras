@@ -220,9 +220,11 @@ export async function upsertMonthlySummary(summary: any) {
     .select()
     .from(monthlySummary)
     .where(
-      eq(monthlySummary.userId, summary.userId) &&
-      eq(monthlySummary.year, summary.year) &&
-      eq(monthlySummary.month, summary.month)
+      and(
+        eq(monthlySummary.userId, summary.userId),
+        eq(monthlySummary.year, summary.year),
+        eq(monthlySummary.month, summary.month)
+      )
     )
     .limit(1);
 
@@ -273,9 +275,11 @@ export async function getMonthlySummary(userId: number, year: number, month: num
     .select()
     .from(monthlySummary)
     .where(
-      eq(monthlySummary.userId, userId) &&
-      eq(monthlySummary.year, year) &&
-      eq(monthlySummary.month, month)
+      and(
+        eq(monthlySummary.userId, userId),
+        eq(monthlySummary.year, year),
+        eq(monthlySummary.month, month)
+      )
     )
     .limit(1);
 
@@ -313,8 +317,10 @@ export async function getOrCreateTimeEntry(userId: number, date: string) {
     .select()
     .from(timeEntries)
     .where(
-      eq(timeEntries.userId, userId) &&
-      eq(timeEntries.date, date)
+      and(
+        eq(timeEntries.userId, userId),
+        eq(timeEntries.date, date)
+      )
     )
     .limit(1);
 

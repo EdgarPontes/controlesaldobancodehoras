@@ -30,7 +30,7 @@ async function startServer() {
     serveStatic(app);
   }
 
-  const port = parseInt(process.env.PORT || "3000");
+  const port = parseInt(process.env.PORT || "8000");
 
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);

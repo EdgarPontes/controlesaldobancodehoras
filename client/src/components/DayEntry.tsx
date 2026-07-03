@@ -82,7 +82,7 @@ export function DayEntry({
   const expectedMinutes = getExpectedMinutes(date, weekdayHours, saturdayHours);
   const balanceMinutes = dayType === "normal" ? workedMinutes - expectedMinutes : 0;
   const balanceStatus = getBalanceStatus(balanceMinutes);
-  
+
   // Calculate extra hours (time5 to time6, or any overtime beyond 8 hours for the day)
   let extraMinutes = 0;
   if (time5 && time6) {
@@ -123,12 +123,12 @@ export function DayEntry({
         </div>
 
         {/* Day Type */}
-        <div>
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block">
+        <div className="flex items-center gap-3">
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">
             Tipo de Dia
           </label>
           <Select value={dayType} onValueChange={setDayType}>
-            <SelectTrigger>
+            <SelectTrigger className="w-[180px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -204,13 +204,12 @@ export function DayEntry({
                   Horas Extras:
                 </span>
                 <span
-                  className={`text-lg font-bold ${
-                    extraStatus === "positive"
-                      ? "text-green-600 dark:text-green-400"
-                      : extraStatus === "negative"
+                  className={`text-lg font-bold ${extraStatus === "positive"
+                    ? "text-green-600 dark:text-green-400"
+                    : extraStatus === "negative"
                       ? "text-red-600 dark:text-red-400"
                       : "text-slate-900 dark:text-white"
-                  }`}
+                    }`}
                 >
                   {formatBalance(extraMinutes)}
                 </span>
