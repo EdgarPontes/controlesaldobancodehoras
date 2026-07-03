@@ -167,14 +167,14 @@ export function MonthlyTable({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="h-full flex flex-col">
       {/* Calendar Grid */}
-      <div className="grid grid-cols-7 gap-2">
+      <div className="grid grid-cols-7 grid-rows-[repeat(6,1fr)] gap-2 flex-1 min-h-0">
         {/* Day headers */}
         {dayNames.map((day) => (
           <div
             key={day}
-            className="text-center text-sm font-semibold text-slate-600 dark:text-slate-400 py-2"
+            className="text-center text-sm font-semibold text-slate-600 dark:text-slate-400 py-1"
           >
             {day}
           </div>
@@ -183,7 +183,7 @@ export function MonthlyTable({
         {/* Days */}
         {days.map((day, index) => {
           if (day === null) {
-            return <div key={`empty-${index}`} className="aspect-square" />;
+            return <div key={`empty-${index}`} className="min-h-0" />;
           }
 
           const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -209,37 +209,35 @@ export function MonthlyTable({
               key={day}
               variant="outline"
               onClick={() => handleDayClick(day)}
-              className={`aspect-square h-auto p-2 flex flex-col items-center justify-center text-xs rounded-lg transition-colors ${
-                isSunday
+              className={`h-full min-h-0 w-full p-0 flex flex-col items-center justify-center text-xs rounded-lg transition-colors ${isSunday
                   ? "bg-slate-100 dark:bg-slate-800 cursor-default"
                   : entry
-                  ? balanceStatus === "positive"
-                    ? "bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800"
-                    : balanceStatus === "negative"
-                    ? "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800"
-                    : "bg-slate-50 dark:bg-slate-900"
-                  : ""
-              }`}
+                    ? balanceStatus === "positive"
+                      ? "bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800"
+                      : balanceStatus === "negative"
+                        ? "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800"
+                        : "bg-slate-50 dark:bg-slate-900"
+                    : ""
+                }`}
               disabled={isSunday}
             >
-              <div className="font-semibold text-slate-900 dark:text-white">{day}</div>
+              <div className="font-semibold text-slate-900 dark:text-white leading-tight">{day}</div>
               {entry && (
                 <div
-                  className={`text-xs font-mono ${
-                    balanceStatus === "positive"
+                  className={`text-[10px] font-mono leading-tight ${balanceStatus === "positive"
                       ? "text-green-600 dark:text-green-400"
                       : balanceStatus === "negative"
-                      ? "text-red-600 dark:text-red-400"
-                      : "text-slate-600 dark:text-slate-400"
-                  }`}
+                        ? "text-red-600 dark:text-red-400"
+                        : "text-slate-600 dark:text-slate-400"
+                    }`}
                 >
                   {entry.dayType !== "normal" ? (
-                    <span className="text-xs">
+                    <span className="text-[10px]">
                       {entry.dayType === "holiday"
                         ? "Feriado"
                         : entry.dayType === "leave"
-                        ? "Folga"
-                        : "Ausência"}
+                          ? "Folga"
+                          : "Ausência"}
                     </span>
                   ) : (
                     formatBalance(dayBalance)
@@ -252,19 +250,18 @@ export function MonthlyTable({
       </div>
 
       {/* Summary */}
-      <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg border border-slate-200 dark:border-slate-800 space-y-2">
+      <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg border border-slate-200 dark:border-slate-800 space-y-2 shrink-0 mt-2">
         <div className="flex justify-between items-center">
           <span className="font-medium text-slate-700 dark:text-slate-300">
             Total do mês:
           </span>
           <span
-            className={`text-lg font-bold ${
-              totalBalance > 0
+            className={`text-lg font-bold ${totalBalance > 0
                 ? "text-green-600 dark:text-green-400"
                 : totalBalance < 0
-                ? "text-red-600 dark:text-red-400"
-                : "text-slate-900 dark:text-white"
-            }`}
+                  ? "text-red-600 dark:text-red-400"
+                  : "text-slate-900 dark:text-white"
+              }`}
           >
             {formatBalance(totalBalance)}
           </span>
@@ -276,13 +273,12 @@ export function MonthlyTable({
               Acumulado no semestre ({month <= 6 ? "1º Semestre" : "2º Semestre"}):
             </span>
             <span
-              className={`text-base font-semibold ${
-                semesterBalance > 0
+              className={`text-base font-semibold ${semesterBalance > 0
                   ? "text-green-600 dark:text-green-400"
                   : semesterBalance < 0
-                  ? "text-red-600 dark:text-red-400"
-                  : "text-slate-900 dark:text-white"
-              }`}
+                    ? "text-red-600 dark:text-red-400"
+                    : "text-slate-900 dark:text-white"
+                }`}
             >
               {formatBalance(semesterBalance)}
             </span>

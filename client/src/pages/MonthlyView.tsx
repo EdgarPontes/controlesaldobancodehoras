@@ -283,17 +283,17 @@ export default function MonthlyView() {
 
   return (
     <DashboardLayout>
-      <div className="w-full">
+      <div className="h-full flex flex-col overflow-hidden">
         {/* Tabs */}
-        <Tabs defaultValue="month" className="space-y-3">
-          <TabsList className="grid w-full grid-cols-2">
+        <Tabs defaultValue="month" className="flex flex-col flex-1 overflow-hidden">
+          <TabsList className="grid w-full grid-cols-2 shrink-0">
             <TabsTrigger value="month">Visualização Mensal</TabsTrigger>
             <TabsTrigger value="history">Histórico</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="month" className="space-y-3 m-0">
-            <Card className="border-0 shadow-sm">
-              <CardHeader className="pb-3">
+          <TabsContent value="month" className="flex flex-col flex-1 overflow-hidden m-0 pt-3">
+            <Card className="border-0 shadow-sm flex flex-col flex-1 overflow-hidden">
+              <CardHeader className="pb-3 shrink-0">
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <CardTitle className="text-base sm:text-lg capitalize">{monthName}</CardTitle>
@@ -309,7 +309,7 @@ export default function MonthlyView() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="px-3 sm:px-6">
+              <CardContent className="px-3 sm:px-6 flex-1 overflow-hidden">
                 {timeEntries && workSettings ? (
                   <MonthlyTable
                     year={year}
@@ -328,7 +328,7 @@ export default function MonthlyView() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="history" className="space-y-3 m-0">
+          <TabsContent value="history" className="flex flex-col flex-1 overflow-hidden m-0 pt-3">
             <Card className="border-0 shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base sm:text-lg">Histórico do Banco</CardTitle>
@@ -347,13 +347,12 @@ export default function MonthlyView() {
                             {group.title}
                           </span>
                           <span
-                            className={`text-sm sm:text-base font-bold ${
-                              group.totalMinutes > 0
+                            className={`text-sm sm:text-base font-bold ${group.totalMinutes > 0
                                 ? "text-green-600 dark:text-green-400"
                                 : group.totalMinutes < 0
-                                ? "text-red-600 dark:text-red-400"
-                                : "text-slate-600 dark:text-slate-400"
-                            }`}
+                                  ? "text-red-600 dark:text-red-400"
+                                  : "text-slate-600 dark:text-slate-400"
+                              }`}
                           >
                             {formatBalance(group.totalMinutes)}
                           </span>
@@ -371,13 +370,12 @@ export default function MonthlyView() {
                                 )}
                               </span>
                               <span
-                                className={`text-xs sm:text-sm font-semibold ${
-                                  summary.totalMinutes > 0
+                                className={`text-xs sm:text-sm font-semibold ${summary.totalMinutes > 0
                                     ? "text-green-600 dark:text-green-400"
                                     : summary.totalMinutes < 0
-                                    ? "text-red-600 dark:text-red-400"
-                                    : "text-slate-500 dark:text-slate-500"
-                                }`}
+                                      ? "text-red-600 dark:text-red-400"
+                                      : "text-slate-500 dark:text-slate-500"
+                                  }`}
                               >
                                 {formatBalance(summary.totalMinutes)}
                               </span>
