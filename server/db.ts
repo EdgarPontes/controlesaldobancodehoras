@@ -19,7 +19,7 @@ export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
       const dbType = getDatabaseType(process.env.DATABASE_URL);
-      
+
       if (dbType === "postgres") {
         // PostgreSQL connection
         const client = postgres(process.env.DATABASE_URL);
@@ -97,7 +97,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     if (user.lastSignedIn !== undefined) values.lastSignedIn = user.lastSignedIn;
 
     const dbType = getDatabaseType(process.env.DATABASE_URL || "");
-    
+
     if (dbType === "postgres") {
       await db.insert(users).values(values).onConflictDoUpdate({
         target: users.email,
@@ -131,7 +131,7 @@ export async function upsertTimeEntry(entry: InsertTimeEntry) {
   if (!db) throw new Error("Database not available");
 
   const dbType = getDatabaseType(process.env.DATABASE_URL || "");
-  
+
   if (dbType === "postgres") {
     await db.insert(timeEntries).values(entry).onConflictDoUpdate({
       target: [timeEntries.userId, timeEntries.date],
@@ -146,20 +146,20 @@ export async function upsertTimeEntry(entry: InsertTimeEntry) {
   // Update monthly summary after time entry is upserted
   const dateStr = entry.date;
   const [year, month] = dateStr.split("-").slice(0, 2).map(Number);
-  
+
   // Get all entries for the month to recalculate
   const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
   const endDate = `${year}-${String(month).padStart(2, "0")}-31`;
   const monthEntries = await getTimeEntriesByDateRange(entry.userId, startDate, endDate);
-  
+
   const userSettings = await getWorkSettings(entry.userId);
   if (!userSettings) return;
 
   // Import calculation functions
   const { calculateMonthlyBalance } = require("./balanceCalculator");
-  
+
   const monthlyBalance = calculateMonthlyBalance(year, month, monthEntries, userSettings);
-  
+
   // Upsert the monthly summary
   await upsertMonthlySummary({
     userId: entry.userId,
@@ -187,7 +187,7 @@ export async function upsertWorkSettings(settings: any) {
   if (!db) throw new Error("Database not available");
 
   const dbType = getDatabaseType(process.env.DATABASE_URL || "");
-  
+
   if (dbType === "postgres") {
     return await db.insert(workSettings).values(settings).onConflictDoUpdate({
       target: workSettings.userId,
@@ -251,7 +251,7 @@ export async function getOrCreateWorkSettings(userId: number) {
   if (!db) throw new Error("Database not available");
 
   let settings = await getWorkSettings(userId);
-  
+
   if (!settings) {
     const defaultSettings = {
       userId,
@@ -262,7 +262,7 @@ export async function getOrCreateWorkSettings(userId: number) {
     await upsertWorkSettings(defaultSettings);
     settings = await getWorkSettings(userId);
   }
-  
+
   return settings;
 }
 
@@ -308,6 +308,102 @@ export async function getTimeEntriesByDateRange(userId: number, startDate: strin
         lte(timeEntries.date, endDate)
       )
     );
+}
+
+export async function populateMonthWithDefaults(
+  userId: number,
+  year: number,
+  month: number,
+  workSettings: any
+): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  let populatedCount = 0;
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const date = new Date(dateStr + "T00:00:00Z");
+    const dayOfWeek = date.getUTCDay();
+
+    // Skip Sundays
+    if (dayOfWeek === 0) continue;
+
+    const isSat = dayOfWeek === 6;
+    const defaults = isSat
+      ? {
+        time1: workSettings.defaultSaturdayTime1,
+        time2: workSettings.defaultSaturdayTime2,
+        time3: workSettings.defaultSaturdayTime3,
+        time4: workSettings.defaultSaturdayTime4,
+        time5: workSettings.defaultSaturdayTime5,
+        time6: workSettings.defaultSaturdayTime6,
+      }
+      : {
+        time1: workSettings.defaultWeekdayTime1,
+        time2: workSettings.defaultWeekdayTime2,
+        time3: workSettings.defaultWeekdayTime3,
+        time4: workSettings.defaultWeekdayTime4,
+        time5: workSettings.defaultWeekdayTime5,
+        time6: workSettings.defaultWeekdayTime6,
+      };
+
+    // Check if all default times are empty
+    const hasAnyDefault = Object.values(defaults).some(Boolean);
+    if (!hasAnyDefault) continue;
+
+    // Get existing entry to preserve dayType and notes
+    const existing = await db
+      .select()
+      .from(timeEntries)
+      .where(
+        and(
+          eq(timeEntries.userId, userId),
+          eq(timeEntries.date, dateStr)
+        )
+      )
+      .limit(1);
+
+    const existingEntry = existing.length > 0 ? existing[0] : null;
+
+    const entry = {
+      userId,
+      date: dateStr,
+      time1: defaults.time1 !== undefined ? defaults.time1 : existingEntry?.time1 || null,
+      time2: defaults.time2 !== undefined ? defaults.time2 : existingEntry?.time2 || null,
+      time3: defaults.time3 !== undefined ? defaults.time3 : existingEntry?.time3 || null,
+      time4: defaults.time4 !== undefined ? defaults.time4 : existingEntry?.time4 || null,
+      time5: defaults.time5 !== undefined ? defaults.time5 : existingEntry?.time5 || null,
+      time6: defaults.time6 !== undefined ? defaults.time6 : existingEntry?.time6 || null,
+      dayType: existingEntry?.dayType || "normal",
+      notes: existingEntry?.notes || null,
+    };
+
+    // Only create/update if we have at least one time or it's not a normal day
+    const hasAnyTime = [entry.time1, entry.time2, entry.time3, entry.time4, entry.time5, entry.time6].some(Boolean);
+    if (!hasAnyTime) continue;
+
+    await upsertTimeEntry(entry);
+    populatedCount++;
+  }
+
+  // Refresh monthly summary after populating
+  const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
+  const endDate = `${year}-${String(month).padStart(2, "0")}-31`;
+  const monthEntries = await getTimeEntriesByDateRange(userId, startDate, endDate);
+
+  const { calculateMonthlyBalance } = require("./balanceCalculator");
+  const monthlyBalance = calculateMonthlyBalance(year, month, monthEntries, workSettings);
+
+  await upsertMonthlySummary({
+    userId,
+    year,
+    month,
+    totalMinutes: monthlyBalance.totalBalanceMinutes,
+  });
+
+  return populatedCount;
 }
 
 export async function getOrCreateTimeEntry(userId: number, date: string) {

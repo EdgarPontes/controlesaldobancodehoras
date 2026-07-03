@@ -55,6 +55,20 @@ export const workSettings = pgTable("workSettings", {
   weekdayHours: integer("weekdayHours").default(8).notNull(),
   saturdayHours: integer("saturdayHours").default(4).notNull(),
   bankPeriod: varchar("bankPeriod", { length: 20 }).default("monthly").notNull(),
+  // Default times for weekdays (Monday-Friday)
+  defaultWeekdayTime1: varchar("defaultWeekdayTime1", { length: 8 }),
+  defaultWeekdayTime2: varchar("defaultWeekdayTime2", { length: 8 }),
+  defaultWeekdayTime3: varchar("defaultWeekdayTime3", { length: 8 }),
+  defaultWeekdayTime4: varchar("defaultWeekdayTime4", { length: 8 }),
+  defaultWeekdayTime5: varchar("defaultWeekdayTime5", { length: 8 }),
+  defaultWeekdayTime6: varchar("defaultWeekdayTime6", { length: 8 }),
+  // Default times for Saturdays
+  defaultSaturdayTime1: varchar("defaultSaturdayTime1", { length: 8 }),
+  defaultSaturdayTime2: varchar("defaultSaturdayTime2", { length: 8 }),
+  defaultSaturdayTime3: varchar("defaultSaturdayTime3", { length: 8 }),
+  defaultSaturdayTime4: varchar("defaultSaturdayTime4", { length: 8 }),
+  defaultSaturdayTime5: varchar("defaultSaturdayTime5", { length: 8 }),
+  defaultSaturdayTime6: varchar("defaultSaturdayTime6", { length: 8 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });

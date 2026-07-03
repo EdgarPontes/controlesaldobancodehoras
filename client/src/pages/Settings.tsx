@@ -5,11 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TimeInput } from "@/components/TimeInput";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useState, useEffect } from "react";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, CalendarPlus, Layers } from "lucide-react";
 import { toast } from "sonner";
+import { Separator } from "@/components/ui/separator";
 
 export default function Settings() {
   const { user } = useAuth();
@@ -25,12 +27,63 @@ export default function Settings() {
   const [bankPeriod, setBankPeriod] = useState<"monthly" | "semesterly">("monthly");
   const [isSaving, setIsSaving] = useState(false);
 
+  // Default times state
+  const [defaultWeekdayTime1, setDefaultWeekdayTime1] = useState<string | null>(null);
+  const [defaultWeekdayTime2, setDefaultWeekdayTime2] = useState<string | null>(null);
+  const [defaultWeekdayTime3, setDefaultWeekdayTime3] = useState<string | null>(null);
+  const [defaultWeekdayTime4, setDefaultWeekdayTime4] = useState<string | null>(null);
+  const [defaultWeekdayTime5, setDefaultWeekdayTime5] = useState<string | null>(null);
+  const [defaultWeekdayTime6, setDefaultWeekdayTime6] = useState<string | null>(null);
+
+  const [defaultSaturdayTime1, setDefaultSaturdayTime1] = useState<string | null>(null);
+  const [defaultSaturdayTime2, setDefaultSaturdayTime2] = useState<string | null>(null);
+  const [defaultSaturdayTime3, setDefaultSaturdayTime3] = useState<string | null>(null);
+  const [defaultSaturdayTime4, setDefaultSaturdayTime4] = useState<string | null>(null);
+  const [defaultSaturdayTime5, setDefaultSaturdayTime5] = useState<string | null>(null);
+  const [defaultSaturdayTime6, setDefaultSaturdayTime6] = useState<string | null>(null);
+
+  // Populate mutations
+  const utils = trpc.useUtils();
+  const populateMonth = trpc.populateWithDefaults.populateMonth.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.message);
+      utils.timeEntries.getByMonth.invalidate();
+      utils.summary.getAllMonthly.invalidate();
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const populateSemester = trpc.populateWithDefaults.populateSemester.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.message);
+      utils.timeEntries.getByMonth.invalidate();
+      utils.summary.getAllMonthly.invalidate();
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
   // Update local state when data loads
   useEffect(() => {
     if (workSettings) {
       setWeekdayHours(workSettings.weekdayHours);
       setSaturdayHours(workSettings.saturdayHours);
       setBankPeriod(workSettings.bankPeriod as "monthly" | "semesterly");
+      setDefaultWeekdayTime1(workSettings.defaultWeekdayTime1 || null);
+      setDefaultWeekdayTime2(workSettings.defaultWeekdayTime2 || null);
+      setDefaultWeekdayTime3(workSettings.defaultWeekdayTime3 || null);
+      setDefaultWeekdayTime4(workSettings.defaultWeekdayTime4 || null);
+      setDefaultWeekdayTime5(workSettings.defaultWeekdayTime5 || null);
+      setDefaultWeekdayTime6(workSettings.defaultWeekdayTime6 || null);
+      setDefaultSaturdayTime1(workSettings.defaultSaturdayTime1 || null);
+      setDefaultSaturdayTime2(workSettings.defaultSaturdayTime2 || null);
+      setDefaultSaturdayTime3(workSettings.defaultSaturdayTime3 || null);
+      setDefaultSaturdayTime4(workSettings.defaultSaturdayTime4 || null);
+      setDefaultSaturdayTime5(workSettings.defaultSaturdayTime5 || null);
+      setDefaultSaturdayTime6(workSettings.defaultSaturdayTime6 || null);
     }
   }, [workSettings]);
 
@@ -51,12 +104,55 @@ export default function Settings() {
       weekdayHours,
       saturdayHours,
       bankPeriod,
+      defaultWeekdayTime1,
+      defaultWeekdayTime2,
+      defaultWeekdayTime3,
+      defaultWeekdayTime4,
+      defaultWeekdayTime5,
+      defaultWeekdayTime6,
+      defaultSaturdayTime1,
+      defaultSaturdayTime2,
+      defaultSaturdayTime3,
+      defaultSaturdayTime4,
+      defaultSaturdayTime5,
+      defaultSaturdayTime6,
     });
+  };
+
+  const handlePopulateMonth = async () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    await populateMonth.mutateAsync({ year, month });
+  };
+
+  const handlePopulateSemester = async () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const isFirstSemester = month <= 6;
+    const months = isFirstSemester ? [1, 2, 3, 4, 5, 6] : [7, 8, 9, 10, 11, 12];
+    await populateSemester.mutateAsync({ year, months });
   };
 
   if (!user) {
     return null;
   }
+
+  const hasDefaultTimes = [
+    defaultWeekdayTime1,
+    defaultWeekdayTime2,
+    defaultWeekdayTime3,
+    defaultWeekdayTime4,
+    defaultWeekdayTime5,
+    defaultWeekdayTime6,
+    defaultSaturdayTime1,
+    defaultSaturdayTime2,
+    defaultSaturdayTime3,
+    defaultSaturdayTime4,
+    defaultSaturdayTime5,
+    defaultSaturdayTime6,
+  ].some(Boolean);
 
   return (
     <DashboardLayout>
@@ -73,6 +169,7 @@ export default function Settings() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Configurações</h1>
               <p className="text-slate-600 dark:text-slate-400 mt-1">Personalize suas preferências</p>
             </div>
           </div>
@@ -150,6 +247,118 @@ export default function Settings() {
                   </p>
                 </div>
 
+                <Separator />
+
+                {/* Default Times Section */}
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                      Horários Padrão
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Defina os horários padrão para popular dias rapidamente. Após salvar, use os botões abaixo para preencher um mês ou semestre inteiro.
+                    </p>
+                  </div>
+
+                  {/* Weekday Default Times */}
+                  <div className="space-y-3">
+                    <Label className="text-xs font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                      Dias de Semana (Seg-Sex)
+                    </Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <TimeInput
+                        label="Entrada"
+                        value={defaultWeekdayTime1}
+                        onChange={setDefaultWeekdayTime1}
+                        placeholder="HH:MM"
+                      />
+                      <TimeInput
+                        label="Saída Almoço"
+                        value={defaultWeekdayTime2}
+                        onChange={setDefaultWeekdayTime2}
+                        placeholder="HH:MM"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <TimeInput
+                        label="Retorno Almoço"
+                        value={defaultWeekdayTime3}
+                        onChange={setDefaultWeekdayTime3}
+                        placeholder="HH:MM"
+                      />
+                      <TimeInput
+                        label="Saída"
+                        value={defaultWeekdayTime4}
+                        onChange={setDefaultWeekdayTime4}
+                        placeholder="HH:MM"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <TimeInput
+                        label="Extra Entrada"
+                        value={defaultWeekdayTime5}
+                        onChange={setDefaultWeekdayTime5}
+                        placeholder="HH:MM"
+                      />
+                      <TimeInput
+                        label="Extra Saída"
+                        value={defaultWeekdayTime6}
+                        onChange={setDefaultWeekdayTime6}
+                        placeholder="HH:MM"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Saturday Default Times */}
+                  <div className="space-y-3">
+                    <Label className="text-xs font-medium text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                      Sábado
+                    </Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <TimeInput
+                        label="Entrada"
+                        value={defaultSaturdayTime1}
+                        onChange={setDefaultSaturdayTime1}
+                        placeholder="HH:MM"
+                      />
+                      <TimeInput
+                        label="Saída Almoço"
+                        value={defaultSaturdayTime2}
+                        onChange={setDefaultSaturdayTime2}
+                        placeholder="HH:MM"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <TimeInput
+                        label="Retorno Almoço"
+                        value={defaultSaturdayTime3}
+                        onChange={setDefaultSaturdayTime3}
+                        placeholder="HH:MM"
+                      />
+                      <TimeInput
+                        label="Saída"
+                        value={defaultSaturdayTime4}
+                        onChange={setDefaultSaturdayTime4}
+                        placeholder="HH:MM"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <TimeInput
+                        label="Extra Entrada"
+                        value={defaultSaturdayTime5}
+                        onChange={setDefaultSaturdayTime5}
+                        placeholder="HH:MM"
+                      />
+                      <TimeInput
+                        label="Extra Saída"
+                        value={defaultSaturdayTime6}
+                        onChange={setDefaultSaturdayTime6}
+                        placeholder="HH:MM"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <Button
                   onClick={handleSave}
                   disabled={isSaving || isLoading}
@@ -158,6 +367,47 @@ export default function Settings() {
                   <Save className="h-4 w-4 mr-2" />
                   {isSaving ? "Salvando..." : "Salvar Configurações"}
                 </Button>
+              </CardContent>
+            </Card>
+
+            {/* Populate Actions Card */}
+            <Card className="border-0 shadow-sm">
+              <CardHeader>
+                <CardTitle>Popular Registros</CardTitle>
+                <CardDescription>
+                  Preencha automaticamente os dias com os horários padrão configurados acima
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={handlePopulateMonth}
+                    disabled={!hasDefaultTimes || populateMonth.isPending}
+                  >
+                    <CalendarPlus className="h-4 w-4 mr-2" />
+                    {populateMonth.isPending ? "Populando..." : "Popular Mês Atual"}
+                  </Button>
+
+                  {bankPeriod === "semesterly" && (
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={handlePopulateSemester}
+                      disabled={!hasDefaultTimes || populateSemester.isPending}
+                    >
+                      <Layers className="h-4 w-4 mr-2" />
+                      {populateSemester.isPending ? "Populando..." : "Popular Semestre Inteiro"}
+                    </Button>
+                  )}
+                </div>
+
+                {!hasDefaultTimes && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 text-center">
+                    Configure e salve os horários padrão acima primeiro.
+                  </p>
+                )}
               </CardContent>
             </Card>
 

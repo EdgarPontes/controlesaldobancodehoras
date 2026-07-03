@@ -66,6 +66,104 @@ export const appRouter = router({
     }),
   }),
 
+  populateWithDefaults: router({
+    populateMonth: protectedProcedure
+      .input(
+        z.object({
+          year: z.number(),
+          month: z.number(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const settings = await db.getOrCreateWorkSettings(ctx.user.id);
+        if (!settings) throw new Error("Work settings not found");
+
+        const hasAnyDefault = [
+          settings.defaultWeekdayTime1,
+          settings.defaultWeekdayTime2,
+          settings.defaultWeekdayTime3,
+          settings.defaultWeekdayTime4,
+          settings.defaultWeekdayTime5,
+          settings.defaultWeekdayTime6,
+          settings.defaultSaturdayTime1,
+          settings.defaultSaturdayTime2,
+          settings.defaultSaturdayTime3,
+          settings.defaultSaturdayTime4,
+          settings.defaultSaturdayTime5,
+          settings.defaultSaturdayTime6,
+        ].some(Boolean);
+
+        if (!hasAnyDefault) {
+          throw new Error(
+            "Nenhum horário padrão configurado. Defina os horários nas configurações primeiro."
+          );
+        }
+
+        const count = await db.populateMonthWithDefaults(
+          ctx.user.id,
+          input.year,
+          input.month,
+          settings
+        );
+
+        return {
+          success: true,
+          populatedDays: count,
+          message: `${count} dia(s) populado(s) com sucesso.`,
+        };
+      }),
+
+    populateSemester: protectedProcedure
+      .input(
+        z.object({
+          year: z.number(),
+          months: z.array(z.number()).min(1).max(6),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const settings = await db.getOrCreateWorkSettings(ctx.user.id);
+        if (!settings) throw new Error("Work settings not found");
+
+        const hasAnyDefault = [
+          settings.defaultWeekdayTime1,
+          settings.defaultWeekdayTime2,
+          settings.defaultWeekdayTime3,
+          settings.defaultWeekdayTime4,
+          settings.defaultWeekdayTime5,
+          settings.defaultWeekdayTime6,
+          settings.defaultSaturdayTime1,
+          settings.defaultSaturdayTime2,
+          settings.defaultSaturdayTime3,
+          settings.defaultSaturdayTime4,
+          settings.defaultSaturdayTime5,
+          settings.defaultSaturdayTime6,
+        ].some(Boolean);
+
+        if (!hasAnyDefault) {
+          throw new Error(
+            "Nenhum horário padrão configurado. Defina os horários nas configurações primeiro."
+          );
+        }
+
+        let totalPopulated = 0;
+        for (const month of input.months) {
+          const count = await db.populateMonthWithDefaults(
+            ctx.user.id,
+            input.year,
+            month,
+            settings
+          );
+          totalPopulated += count;
+        }
+
+        return {
+          success: true,
+          populatedDays: totalPopulated,
+          message: `${totalPopulated} dia(s) populado(s) no semestre.`,
+        };
+      }),
+  }),
+
   timeEntries: router({
     getByMonth: protectedProcedure
       .input(z.object({ year: z.number(), month: z.number() }))
@@ -123,6 +221,18 @@ export const appRouter = router({
           weekdayHours: z.number().min(1).max(24).optional(),
           saturdayHours: z.number().min(1).max(24).optional(),
           bankPeriod: z.enum(["monthly", "semesterly"]).optional(),
+          defaultWeekdayTime1: z.string().nullable().optional(),
+          defaultWeekdayTime2: z.string().nullable().optional(),
+          defaultWeekdayTime3: z.string().nullable().optional(),
+          defaultWeekdayTime4: z.string().nullable().optional(),
+          defaultWeekdayTime5: z.string().nullable().optional(),
+          defaultWeekdayTime6: z.string().nullable().optional(),
+          defaultSaturdayTime1: z.string().nullable().optional(),
+          defaultSaturdayTime2: z.string().nullable().optional(),
+          defaultSaturdayTime3: z.string().nullable().optional(),
+          defaultSaturdayTime4: z.string().nullable().optional(),
+          defaultSaturdayTime5: z.string().nullable().optional(),
+          defaultSaturdayTime6: z.string().nullable().optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -136,6 +246,18 @@ export const appRouter = router({
         if (input.weekdayHours !== undefined) updates.weekdayHours = input.weekdayHours;
         if (input.saturdayHours !== undefined) updates.saturdayHours = input.saturdayHours;
         if (input.bankPeriod !== undefined) updates.bankPeriod = input.bankPeriod;
+        if (input.defaultWeekdayTime1 !== undefined) updates.defaultWeekdayTime1 = input.defaultWeekdayTime1;
+        if (input.defaultWeekdayTime2 !== undefined) updates.defaultWeekdayTime2 = input.defaultWeekdayTime2;
+        if (input.defaultWeekdayTime3 !== undefined) updates.defaultWeekdayTime3 = input.defaultWeekdayTime3;
+        if (input.defaultWeekdayTime4 !== undefined) updates.defaultWeekdayTime4 = input.defaultWeekdayTime4;
+        if (input.defaultWeekdayTime5 !== undefined) updates.defaultWeekdayTime5 = input.defaultWeekdayTime5;
+        if (input.defaultWeekdayTime6 !== undefined) updates.defaultWeekdayTime6 = input.defaultWeekdayTime6;
+        if (input.defaultSaturdayTime1 !== undefined) updates.defaultSaturdayTime1 = input.defaultSaturdayTime1;
+        if (input.defaultSaturdayTime2 !== undefined) updates.defaultSaturdayTime2 = input.defaultSaturdayTime2;
+        if (input.defaultSaturdayTime3 !== undefined) updates.defaultSaturdayTime3 = input.defaultSaturdayTime3;
+        if (input.defaultSaturdayTime4 !== undefined) updates.defaultSaturdayTime4 = input.defaultSaturdayTime4;
+        if (input.defaultSaturdayTime5 !== undefined) updates.defaultSaturdayTime5 = input.defaultSaturdayTime5;
+        if (input.defaultSaturdayTime6 !== undefined) updates.defaultSaturdayTime6 = input.defaultSaturdayTime6;
 
         await database
           .update(workSettingsTable)
