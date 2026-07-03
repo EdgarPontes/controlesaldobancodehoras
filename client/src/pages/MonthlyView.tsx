@@ -222,94 +222,92 @@ export default function MonthlyView() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
-        <div className="container mx-auto px-4 py-8">
-          {/* Tabs */}
-          <Tabs defaultValue="month" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="month">Visualização Mensal</TabsTrigger>
-              <TabsTrigger value="history">Histórico</TabsTrigger>
-            </TabsList>
+      <div className="w-full">
+        {/* Tabs */}
+        <Tabs defaultValue="month" className="space-y-3">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="month">Visualização Mensal</TabsTrigger>
+            <TabsTrigger value="history">Histórico</TabsTrigger>
+          </TabsList>
 
-            <TabsContent value="month" className="space-y-4">
-              <Card className="border-0 shadow-sm">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle>{monthName}</CardTitle>
-                      <CardDescription>Registros de ponto e saldo diário</CardDescription>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="icon" onClick={handlePrevMonth}>
-                        <ChevronLeft className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="icon" onClick={handleNextMonth}>
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
+          <TabsContent value="month" className="space-y-3 m-0">
+            <Card className="border-0 shadow-sm">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <CardTitle className="text-base sm:text-lg capitalize">{monthName}</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Registros de ponto e saldo diário</CardDescription>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  {timeEntries && workSettings ? (
-                    <MonthlyTable
-                      year={year}
-                      month={month}
-                      entries={timeEntries}
-                      weekdayHours={workSettings.weekdayHours}
-                      saturdayHours={workSettings.saturdayHours}
-                      totalBalance={calculateMonthlyBalance(year, month, timeEntries, workSettings).totalBalanceMinutes}
-                    />
-                  ) : (
-                    <div className="text-center py-8 text-slate-500">Carregando...</div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
+                  <div className="flex gap-1 sm:gap-2 shrink-0">
+                    <Button variant="outline" size="icon" onClick={handlePrevMonth}>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="icon" onClick={handleNextMonth}>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="px-3 sm:px-6">
+                {timeEntries && workSettings ? (
+                  <MonthlyTable
+                    year={year}
+                    month={month}
+                    entries={timeEntries}
+                    weekdayHours={workSettings.weekdayHours}
+                    saturdayHours={workSettings.saturdayHours}
+                    totalBalance={calculateMonthlyBalance(year, month, timeEntries, workSettings).totalBalanceMinutes}
+                  />
+                ) : (
+                  <div className="text-center py-8 text-slate-500">Carregando...</div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-            <TabsContent value="history" className="space-y-4">
-              <Card className="border-0 shadow-sm">
-                <CardHeader>
-                  <CardTitle>Histórico de Meses</CardTitle>
-                  <CardDescription>Saldo acumulado por mês</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {monthlySummaries && monthlySummaries.length > 0 ? (
-                    <div className="space-y-2">
-                      {monthlySummaries?.map((summary: any) => (
-                        <div
-                          key={`${summary.year}-${summary.month}`}
-                          className="flex justify-between items-center p-3 rounded-lg bg-slate-50 dark:bg-slate-900"
+          <TabsContent value="history" className="space-y-3 m-0">
+            <Card className="border-0 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base sm:text-lg">Histórico de Meses</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Saldo acumulado por mês</CardDescription>
+              </CardHeader>
+              <CardContent className="px-3 sm:px-6">
+                {monthlySummaries && monthlySummaries.length > 0 ? (
+                  <div className="space-y-2">
+                    {monthlySummaries?.map((summary: any) => (
+                      <div
+                        key={`${summary.year}-${summary.month}`}
+                        className="flex justify-between items-center p-3 rounded-lg bg-slate-50 dark:bg-slate-900"
+                      >
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                          {new Date(summary.year, summary.month - 1, 1).toLocaleString(
+                            "pt-BR",
+                            { month: "long", year: "numeric" }
+                          )}
+                        </span>
+                        <span
+                          className={`text-sm font-semibold ${
+                            summary.totalMinutes > 0
+                              ? "text-green-600 dark:text-green-400"
+                              : summary.totalMinutes < 0
+                              ? "text-red-600 dark:text-red-400"
+                              : "text-slate-600 dark:text-slate-400"
+                          }`}
                         >
-                          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                            {new Date(summary.year, summary.month - 1, 1).toLocaleString(
-                              "pt-BR",
-                              { month: "long", year: "numeric" }
-                            )}
-                          </span>
-                          <span
-                            className={`text-sm font-semibold ${
-                              summary.totalMinutes > 0
-                                ? "text-green-600 dark:text-green-400"
-                                : summary.totalMinutes < 0
-                                ? "text-red-600 dark:text-red-400"
-                                : "text-slate-600 dark:text-slate-400"
-                            }`}
-                          >
-                            {formatBalance(summary.totalMinutes)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-slate-500">
-                      Nenhum registro encontrado
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
+                          {formatBalance(summary.totalMinutes)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-slate-500">
+                    Nenhum registro encontrado
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );

@@ -69,7 +69,6 @@ export default function Settings() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Configurações</h1>
               <p className="text-slate-600 dark:text-slate-400 mt-1">Personalize suas preferências</p>
             </div>
           </div>
@@ -88,7 +87,7 @@ export default function Settings() {
                 <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="weekday-hours" className="text-sm font-medium">
-                      Horas - Segunda a Sexta
+                      Segunda a Sexta
                     </Label>
                     <div className="flex items-center gap-2">
                       <Input
@@ -107,7 +106,7 @@ export default function Settings() {
 
                   <div className="space-y-2">
                     <Label htmlFor="saturday-hours" className="text-sm font-medium">
-                      Horas - Sábado
+                      Sábado
                     </Label>
                     <div className="flex items-center gap-2">
                       <Input

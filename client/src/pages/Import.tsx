@@ -73,7 +73,6 @@ export default function Import() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Importar Dados</h1>
               <p className="text-slate-600 dark:text-slate-400 mt-1">Importe seus registros históricos de ponto</p>
             </div>
           </div>
