@@ -53,9 +53,13 @@ export function DayEntry({
   const [dayType, setDayType] = useState(initialData?.dayType || "normal");
   const [notes, setNotes] = useState(initialData?.notes || "");
 
+  const utils = trpc.useUtils();
+
   const updateMutation = trpc.timeEntries.update.useMutation({
     onSuccess: () => {
       toast.success("Registro salvo com sucesso!");
+      utils.timeEntries.getByMonth.invalidate();
+      utils.summary.getAllMonthly.invalidate();
       onClose?.();
     },
     onError: (error) => {

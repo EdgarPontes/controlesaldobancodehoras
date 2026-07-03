@@ -15,51 +15,6 @@ function formatBalance(minutes: number): string {
   return `${sign}${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
 }
 
-function calculateMonthlyBalance(year: number, month: number, entries: any[], workSettings: any): number {
-  function timeToMinutes(timeStr: string | null | undefined): number | null {
-    if (!timeStr || typeof timeStr !== "string") return null;
-    const trimmed = timeStr.trim();
-    if (!trimmed) return null;
-    const parts = trimmed.split(":");
-    if (parts.length < 2 || parts.length > 3) return null;
-    try {
-      const hours = parseInt(parts[0], 10);
-      const minutes = parseInt(parts[1], 10);
-      const seconds = parts.length === 3 ? parseInt(parts[2], 10) : 0;
-      if (isNaN(hours) || isNaN(minutes) || isNaN(seconds)) return null;
-      if (hours < 0 || minutes < 0 || seconds < 0) return null;
-      if (hours > 24 || minutes >= 60 || seconds >= 60) return null;
-      return hours * 60 + minutes + Math.round(seconds / 60);
-    } catch {
-      return null;
-    }
-  }
-
-  function calculateWorkedMinutes(t1: string | null | undefined, t2: string | null | undefined): number {
-    if (!t1 || !t2) return 0;
-    const tm1 = timeToMinutes(t1);
-    const tm2 = timeToMinutes(t2);
-    if (tm1 !== null && tm2 !== null && tm2 > tm1) {
-      return tm2 - tm1;
-    }
-    return 0;
-  }
-
-  let totalBalanceMinutes = 0;
-
-  entries.forEach((entry) => {
-    const workedMinutes =
-      calculateWorkedMinutes(entry.time1, entry.time2) +
-      calculateWorkedMinutes(entry.time3, entry.time4) +
-      calculateWorkedMinutes(entry.time5, entry.time6);
-
-    const expectedMinutes = workSettings.weekdayHours * 60;
-    totalBalanceMinutes += workedMinutes - expectedMinutes;
-  });
-
-  return totalBalanceMinutes;
-}
-
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
@@ -76,13 +31,6 @@ export default function Dashboard() {
   const { data: workSettings } = trpc.workSettings.get.useQuery(undefined, {
     enabled: !!user,
   });
-
-  const { data: timeEntries } = trpc.timeEntries.getByMonth.useQuery(
-    { year, month },
-    {
-      enabled: !!user,
-    }
-  );
 
   const { data: monthlySummaries } = trpc.summary.getAllMonthly.useQuery(undefined, {
     enabled: !!user,
@@ -119,8 +67,35 @@ export default function Dashboard() {
     );
   }
 
+  const bankPeriod = workSettings?.bankPeriod || "monthly";
+
+  const isFirstSemester = month <= 6;
+  const semesterStartMonth = isFirstSemester ? 1 : 7;
+  const semesterEndMonth = isFirstSemester ? 6 : 12;
+  const semesterName = isFirstSemester ? "1º Semestre" : "2º Semestre";
+  const semesterMonthsStr = isFirstSemester ? "Jan - Jun" : "Jul - Dez";
+  const semesterLabel = `${semesterName} de ${year} (${semesterMonthsStr})`;
+
+  // Calculate period balance
+  let activePeriodBalance = 0;
+  let activePeriodLabel = "";
+  if (bankPeriod === "semesterly") {
+    activePeriodLabel = semesterLabel;
+    activePeriodBalance = monthlySummaries
+      ?.filter((s: any) => s.year === year && s.month >= semesterStartMonth && s.month <= semesterEndMonth)
+      .reduce((sum: number, s: any) => sum + (s.totalMinutes || 0), 0) || 0;
+  } else {
+    // monthly
+    activePeriodLabel = monthName;
+    const currentMonthSummary = monthlySummaries?.find((s: any) => s.year === year && s.month === month);
+    activePeriodBalance = currentMonthSummary ? currentMonthSummary.totalMinutes : 0;
+  }
+
   const cumulativeBalance = monthlySummaries?.reduce((sum: number, summary: any) => sum + (summary.totalMinutes || 0), 0) || 0;
-  const currentMonthBalance = timeEntries ? calculateMonthlyBalance(year, month, timeEntries, workSettings || { weekdayHours: 8, saturdayHours: 4 }) : 0;
+  
+  // Also calculate current month balance separately to show in "Mês Atual" card
+  const currentMonthSummary = monthlySummaries?.find((s: any) => s.year === year && s.month === month);
+  const currentMonthBalance = currentMonthSummary ? currentMonthSummary.totalMinutes : 0;
 
   return (
     <DashboardLayout>
@@ -140,41 +115,25 @@ export default function Dashboard() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <Card className="border-0 shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  Saldo Acumulado
+                  Saldo do Banco de Horas
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className={`text-3xl font-bold ${
-                  cumulativeBalance > 0
+                  activePeriodBalance > 0
                     ? "text-green-600 dark:text-green-400"
-                    : cumulativeBalance < 0
+                    : activePeriodBalance < 0
                     ? "text-red-600 dark:text-red-400"
                     : "text-slate-900 dark:text-white"
                 }`}>
-                  {formatBalance(cumulativeBalance)}
+                  {formatBalance(activePeriodBalance)}
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
-                  {monthlySummaries?.length || 0} meses registrados
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  Carga Horária
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-slate-900 dark:text-white">
-                  {workSettings?.weekdayHours}h / {workSettings?.saturdayHours}h
-                </div>
-                <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
-                  Seg-Sex / Sábado
+                <p className="text-xs text-slate-500 dark:text-slate-500 mt-1 truncate">
+                  Período: {activePeriodLabel}
                 </p>
               </CardContent>
             </Card>
@@ -195,8 +154,46 @@ export default function Dashboard() {
                 }`}>
                   {formatBalance(currentMonthBalance)}
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
+                <p className="text-xs text-slate-500 dark:text-slate-500 mt-1 capitalize truncate">
                   {monthName}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                  Saldo Geral Acumulado
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className={`text-3xl font-bold ${
+                  cumulativeBalance > 0
+                    ? "text-green-600 dark:text-green-400"
+                    : cumulativeBalance < 0
+                    ? "text-red-600 dark:text-red-400"
+                    : "text-slate-900 dark:text-white"
+                }`}>
+                  {formatBalance(cumulativeBalance)}
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-500 mt-1 truncate">
+                  {monthlySummaries?.length || 0} meses registrados
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                  Carga Horária
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-slate-900 dark:text-white">
+                  {workSettings?.weekdayHours}h / {workSettings?.saturdayHours}h
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-500 mt-1 truncate">
+                  Seg-Sex / Sábado
                 </p>
               </CardContent>
             </Card>

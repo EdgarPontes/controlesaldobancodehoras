@@ -257,6 +257,7 @@ export async function getOrCreateWorkSettings(userId: number) {
       userId,
       weekdayHours: 8,
       saturdayHours: 4,
+      bankPeriod: "monthly",
     };
     await upsertWorkSettings(defaultSettings);
     settings = await getWorkSettings(userId);

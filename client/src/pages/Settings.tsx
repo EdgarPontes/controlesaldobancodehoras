@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useState, useEffect } from "react";
@@ -21,6 +22,7 @@ export default function Settings() {
 
   const [weekdayHours, setWeekdayHours] = useState<number>(8);
   const [saturdayHours, setSaturdayHours] = useState<number>(4);
+  const [bankPeriod, setBankPeriod] = useState<"monthly" | "semesterly">("monthly");
   const [isSaving, setIsSaving] = useState(false);
 
   // Update local state when data loads
@@ -28,6 +30,7 @@ export default function Settings() {
     if (workSettings) {
       setWeekdayHours(workSettings.weekdayHours);
       setSaturdayHours(workSettings.saturdayHours);
+      setBankPeriod(workSettings.bankPeriod as "monthly" | "semesterly");
     }
   }, [workSettings]);
 
@@ -47,6 +50,7 @@ export default function Settings() {
     await updateSettings.mutateAsync({
       weekdayHours,
       saturdayHours,
+      bankPeriod,
     });
   };
 
@@ -78,9 +82,9 @@ export default function Settings() {
             {/* Work Hours Settings */}
             <Card className="border-0 shadow-sm">
               <CardHeader>
-                <CardTitle>Carga Horária</CardTitle>
+                <CardTitle>Carga Horária e Banco de Horas</CardTitle>
                 <CardDescription>
-                  Configure as horas esperadas por dia de trabalho
+                  Configure as horas esperadas por dia de trabalho e o período de acúmulo das horas extras
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -122,6 +126,28 @@ export default function Settings() {
                       <span className="text-sm text-slate-600 dark:text-slate-400">horas</span>
                     </div>
                   </div>
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <Label htmlFor="bank-period" className="text-sm font-medium">
+                    Período do Banco de Horas
+                  </Label>
+                  <Select
+                    value={bankPeriod}
+                    onValueChange={(val) => setBankPeriod(val as "monthly" | "semesterly")}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger id="bank-period" className="w-full">
+                      <SelectValue placeholder="Selecione o período" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="monthly">Mensal (Zera o banco todo mês)</SelectItem>
+                      <SelectItem value="semesterly">Semestral (Acumula durante o semestre)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Isso afeta o cálculo do Saldo Acumulado no painel principal e agrupamentos no histórico.
+                  </p>
                 </div>
 
                 <Button

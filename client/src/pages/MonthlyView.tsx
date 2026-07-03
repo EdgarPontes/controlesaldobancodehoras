@@ -220,6 +220,67 @@ export default function MonthlyView() {
     setCurrentDate(newDate);
   };
 
+  const bankPeriod = workSettings?.bankPeriod || "monthly";
+
+  // Calculate semester balance for the currently selected month
+  const isFirstSemester = month <= 6;
+  const semesterStartMonth = isFirstSemester ? 1 : 7;
+  const semesterEndMonth = isFirstSemester ? 6 : 12;
+  const semesterBalance = monthlySummaries
+    ?.filter((s: any) => s.year === year && s.month >= semesterStartMonth && s.month <= semesterEndMonth)
+    .reduce((sum: number, s: any) => sum + (s.totalMinutes || 0), 0) || 0;
+
+  // Group history by semester or year
+  const groupedHistory = (() => {
+    if (!monthlySummaries) return [];
+
+    const sorted = [...monthlySummaries].sort((a, b) => {
+      if (a.year !== b.year) return b.year - a.year;
+      return b.month - a.month;
+    });
+
+    if (bankPeriod === "semesterly") {
+      const semesters: Record<string, { title: string; totalMinutes: number; months: any[] }> = {};
+
+      sorted.forEach((summary) => {
+        const semNum = summary.month <= 6 ? 1 : 2;
+        const key = `${summary.year}-S${semNum}`;
+
+        if (!semesters[key]) {
+          const semLabel = semNum === 1 ? "1º Semestre" : "2º Semestre";
+          const semMonthsRange = semNum === 1 ? "Jan - Jun" : "Jul - Dez";
+          semesters[key] = {
+            title: `${semLabel} de ${summary.year} (${semMonthsRange})`,
+            totalMinutes: 0,
+            months: [],
+          };
+        }
+
+        semesters[key].totalMinutes += summary.totalMinutes || 0;
+        semesters[key].months.push(summary);
+      });
+
+      return Object.values(semesters);
+    } else {
+      const years: Record<number, { title: string; totalMinutes: number; months: any[] }> = {};
+
+      sorted.forEach((summary) => {
+        const key = summary.year;
+        if (!years[key]) {
+          years[key] = {
+            title: `Ano de ${summary.year}`,
+            totalMinutes: 0,
+            months: [],
+          };
+        }
+        years[key].totalMinutes += summary.totalMinutes || 0;
+        years[key].months.push(summary);
+      });
+
+      return Object.values(years);
+    }
+  })();
+
   return (
     <DashboardLayout>
       <div className="w-full">
@@ -257,6 +318,8 @@ export default function MonthlyView() {
                     weekdayHours={workSettings.weekdayHours}
                     saturdayHours={workSettings.saturdayHours}
                     totalBalance={calculateMonthlyBalance(year, month, timeEntries, workSettings).totalBalanceMinutes}
+                    bankPeriod={bankPeriod}
+                    semesterBalance={semesterBalance}
                   />
                 ) : (
                   <div className="text-center py-8 text-slate-500">Carregando...</div>
@@ -268,34 +331,59 @@ export default function MonthlyView() {
           <TabsContent value="history" className="space-y-3 m-0">
             <Card className="border-0 shadow-sm">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base sm:text-lg">Histórico de Meses</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">Saldo acumulado por mês</CardDescription>
+                <CardTitle className="text-base sm:text-lg">Histórico do Banco</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Saldo acumulado e detalhado por período</CardDescription>
               </CardHeader>
               <CardContent className="px-3 sm:px-6">
-                {monthlySummaries && monthlySummaries.length > 0 ? (
-                  <div className="space-y-2">
-                    {monthlySummaries?.map((summary: any) => (
+                {groupedHistory && groupedHistory.length > 0 ? (
+                  <div className="space-y-6">
+                    {groupedHistory.map((group: any) => (
                       <div
-                        key={`${summary.year}-${summary.month}`}
-                        className="flex justify-between items-center p-3 rounded-lg bg-slate-50 dark:bg-slate-900"
+                        key={group.title}
+                        className="border border-slate-100 dark:border-slate-800 rounded-lg p-4 bg-slate-50/50 dark:bg-slate-900/50"
                       >
-                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                          {new Date(summary.year, summary.month - 1, 1).toLocaleString(
-                            "pt-BR",
-                            { month: "long", year: "numeric" }
-                          )}
-                        </span>
-                        <span
-                          className={`text-sm font-semibold ${
-                            summary.totalMinutes > 0
-                              ? "text-green-600 dark:text-green-400"
-                              : summary.totalMinutes < 0
-                              ? "text-red-600 dark:text-red-400"
-                              : "text-slate-600 dark:text-slate-400"
-                          }`}
-                        >
-                          {formatBalance(summary.totalMinutes)}
-                        </span>
+                        <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-200/50 dark:border-slate-800/50">
+                          <span className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base">
+                            {group.title}
+                          </span>
+                          <span
+                            className={`text-sm sm:text-base font-bold ${
+                              group.totalMinutes > 0
+                                ? "text-green-600 dark:text-green-400"
+                                : group.totalMinutes < 0
+                                ? "text-red-600 dark:text-red-400"
+                                : "text-slate-600 dark:text-slate-400"
+                            }`}
+                          >
+                            {formatBalance(group.totalMinutes)}
+                          </span>
+                        </div>
+                        <div className="space-y-2 pl-2">
+                          {group.months.map((summary: any) => (
+                            <div
+                              key={`${summary.year}-${summary.month}`}
+                              className="flex justify-between items-center p-2 rounded bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-900"
+                            >
+                              <span className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 capitalize">
+                                {new Date(summary.year, summary.month - 1, 1).toLocaleString(
+                                  "pt-BR",
+                                  { month: "long" }
+                                )}
+                              </span>
+                              <span
+                                className={`text-xs sm:text-sm font-semibold ${
+                                  summary.totalMinutes > 0
+                                    ? "text-green-600 dark:text-green-400"
+                                    : summary.totalMinutes < 0
+                                    ? "text-red-600 dark:text-red-400"
+                                    : "text-slate-500 dark:text-slate-500"
+                                }`}
+                              >
+                                {formatBalance(summary.totalMinutes)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ))}
                   </div>

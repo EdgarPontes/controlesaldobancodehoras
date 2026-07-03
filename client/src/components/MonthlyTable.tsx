@@ -91,6 +91,8 @@ interface MonthlyTableProps {
   weekdayHours: number;
   saturdayHours: number;
   totalBalance: number;
+  bankPeriod?: "monthly" | "semesterly";
+  semesterBalance?: number;
 }
 
 const dayNames = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
@@ -102,6 +104,8 @@ export function MonthlyTable({
   weekdayHours,
   saturdayHours,
   totalBalance,
+  bankPeriod = "monthly",
+  semesterBalance,
 }: MonthlyTableProps) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
@@ -248,7 +252,7 @@ export function MonthlyTable({
       </div>
 
       {/* Summary */}
-      <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+      <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg border border-slate-200 dark:border-slate-800 space-y-2">
         <div className="flex justify-between items-center">
           <span className="font-medium text-slate-700 dark:text-slate-300">
             Total do mês:
@@ -265,6 +269,25 @@ export function MonthlyTable({
             {formatBalance(totalBalance)}
           </span>
         </div>
+
+        {bankPeriod === "semesterly" && semesterBalance !== undefined && (
+          <div className="flex justify-between items-center pt-2 border-t border-slate-200 dark:border-slate-800">
+            <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
+              Acumulado no semestre ({month <= 6 ? "1º Semestre" : "2º Semestre"}):
+            </span>
+            <span
+              className={`text-base font-semibold ${
+                semesterBalance > 0
+                  ? "text-green-600 dark:text-green-400"
+                  : semesterBalance < 0
+                  ? "text-red-600 dark:text-red-400"
+                  : "text-slate-900 dark:text-white"
+              }`}
+            >
+              {formatBalance(semesterBalance)}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

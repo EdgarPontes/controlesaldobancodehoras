@@ -54,6 +54,7 @@ export const workSettings = pgTable("workSettings", {
   userId: integer("userId").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
   weekdayHours: integer("weekdayHours").default(8).notNull(),
   saturdayHours: integer("saturdayHours").default(4).notNull(),
+  bankPeriod: varchar("bankPeriod", { length: 20 }).default("monthly").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });

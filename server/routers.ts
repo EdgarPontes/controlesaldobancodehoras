@@ -122,6 +122,7 @@ export const appRouter = router({
         z.object({
           weekdayHours: z.number().min(1).max(24).optional(),
           saturdayHours: z.number().min(1).max(24).optional(),
+          bankPeriod: z.enum(["monthly", "semesterly"]).optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -134,6 +135,7 @@ export const appRouter = router({
         const updates: Record<string, unknown> = {};
         if (input.weekdayHours !== undefined) updates.weekdayHours = input.weekdayHours;
         if (input.saturdayHours !== undefined) updates.saturdayHours = input.saturdayHours;
+        if (input.bankPeriod !== undefined) updates.bankPeriod = input.bankPeriod;
 
         await database
           .update(workSettingsTable)

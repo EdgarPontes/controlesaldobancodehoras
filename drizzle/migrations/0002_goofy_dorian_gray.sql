@@ -1,0 +1,1 @@
+ALTER TABLE "workSettings" ADD COLUMN "bankPeriod" varchar(20) DEFAULT 'monthly' NOT NULL;
