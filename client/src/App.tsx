@@ -8,6 +8,7 @@ import Import from "@/pages/Import";
 import MonthlyView from "@/pages/MonthlyView";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
+import InstallPrompt from "./components/InstallPrompt";
 import { ThemeProvider } from "./contexts/ThemeContext";
 
 function Router() {
@@ -36,6 +37,7 @@ function App() {
         <TooltipProvider>
           <Toaster />
           <Router />
+          <InstallPrompt />
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>
