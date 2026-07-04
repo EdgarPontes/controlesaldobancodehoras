@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
@@ -16,6 +17,7 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [keepConnected, setKeepConnected] = useState(false);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -49,7 +51,7 @@ export default function Login() {
     e.preventDefault();
 
     if (isLogin) {
-      await loginMutation.mutateAsync({ email, password });
+      await loginMutation.mutateAsync({ email, password, keepConnected });
     } else {
       await registerMutation.mutateAsync({ email, password, name });
     }
@@ -114,6 +116,20 @@ export default function Login() {
               />
             </div>
 
+            {isLogin && (
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="keepConnected"
+                  checked={keepConnected}
+                  onCheckedChange={(checked) => setKeepConnected(checked === true)}
+                  disabled={isPending}
+                />
+                <Label htmlFor="keepConnected" className="text-sm font-normal cursor-pointer">
+                  Manter conectado
+                </Label>
+              </div>
+            )}
+
             <Button
               type="submit"
               className="w-full"
@@ -133,6 +149,7 @@ export default function Login() {
               onClick={() => {
                 setIsLogin(!isLogin);
                 setName("");
+                setKeepConnected(false);
               }}
               className="text-sm"
             >

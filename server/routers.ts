@@ -20,6 +20,7 @@ export const appRouter = router({
         z.object({
           email: z.string().email(),
           password: z.string().min(6),
+          keepConnected: z.boolean().optional().default(false),
         })
       )
       .mutation(async ({ input, ctx }) => {
@@ -29,9 +30,10 @@ export const appRouter = router({
         }
 
         const cookieOptions = getSessionCookieOptions(ctx.req);
+        const maxAge = input.keepConnected ? 365 * 24 * 60 * 60 * 1000 : undefined;
         ctx.res.cookie(COOKIE_NAME, result.token, {
           ...cookieOptions,
-          maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
+          ...(maxAge ? { maxAge } : {}),
         });
 
         return result.user;
