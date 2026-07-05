@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { importFromExcel } from "./importService";
 import { loginUser, registerUser } from "./auth";
+import { serialize } from "cookie";
 
 export const appRouter = router({
   system: systemRouter,
@@ -30,11 +31,14 @@ export const appRouter = router({
         }
 
         const cookieOptions = getSessionCookieOptions(ctx.req);
-        const maxAge = input.keepConnected ? 365 * 24 * 60 * 60 * 1000 : undefined;
-        ctx.res.cookie(COOKIE_NAME, result.token, {
+        const maxAgeSec = input.keepConnected ? 365 * 24 * 60 * 60 : undefined;
+        const cookieValue = serialize(COOKIE_NAME, result.token, {
           ...cookieOptions,
-          ...(maxAge ? { maxAge } : {}),
+          ...(maxAgeSec
+            ? { maxAge: maxAgeSec, expires: new Date(Date.now() + maxAgeSec * 1000) }
+            : {}),
         });
+        ctx.res.setHeader("Set-Cookie", cookieValue);
 
         return result.user;
       }),
@@ -51,17 +55,23 @@ export const appRouter = router({
         const result = await registerUser(input.email, input.password, input.name);
 
         const cookieOptions = getSessionCookieOptions(ctx.req);
-        ctx.res.cookie(COOKIE_NAME, result.token, {
+        const cookieValue = serialize(COOKIE_NAME, result.token, {
           ...cookieOptions,
-          maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
+          maxAge: 365 * 24 * 60 * 60,
+          expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         });
+        ctx.res.setHeader("Set-Cookie", cookieValue);
 
         return result.user;
       }),
 
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, cookieOptions);
+      ctx.res.setHeader("Set-Cookie", serialize(COOKIE_NAME, "", {
+        ...cookieOptions,
+        expires: new Date(0),
+        maxAge: 0,
+      }));
       return {
         success: true,
       } as const;
