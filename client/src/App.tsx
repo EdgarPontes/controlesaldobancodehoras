@@ -20,7 +20,7 @@ function HomeRedirect() {
   }
 
   if (user) {
-    return <Redirect to="/dashboard" />;
+    return <Redirect to="/monthly-view" />;
   }
 
   return <Redirect to="/login" />;

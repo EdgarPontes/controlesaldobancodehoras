@@ -22,7 +22,7 @@ export default function Login() {
   // Redirect if already logged in
   useEffect(() => {
     if (!authLoading && user) {
-      setLocation("/dashboard");
+      setLocation("/monthly-view");
     }
   }, [user, authLoading, setLocation]);
 
@@ -30,7 +30,7 @@ export default function Login() {
     onSuccess: (user) => {
       toast.success("Login realizado com sucesso!");
       utils.auth.me.setData(undefined, user);
-      setLocation("/dashboard");
+      setLocation("/monthly-view");
     },
     onError: (error) => {
       toast.error(error.message);
@@ -138,8 +138,8 @@ export default function Login() {
               {isPending
                 ? "Aguarde..."
                 : isLogin
-                ? "Entrar"
-                : "Criar Conta"}
+                  ? "Entrar"
+                  : "Criar Conta"}
             </Button>
           </form>
 
