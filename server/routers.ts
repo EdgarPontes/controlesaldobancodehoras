@@ -38,6 +38,8 @@ export const appRouter = router({
             ? { maxAge: maxAgeSec, expires: new Date(Date.now() + maxAgeSec * 1000) }
             : {}),
         });
+        const timestamp = new Date().toISOString();
+        console.log(`[${timestamp}] [routers] Setting cookie for ${result.user.email}: ${cookieValue.substring(0, 100)}...`);
         ctx.res.setHeader("Set-Cookie", cookieValue);
 
         return result.user;

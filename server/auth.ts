@@ -65,6 +65,11 @@ async function verifySessionToken(
   }
 }
 
+function logAuth(message: string) {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] [auth] ${message}`);
+}
+
 export async function authenticateRequest(
   req: Request
 ): Promise<User | null> {
@@ -72,21 +77,39 @@ export async function authenticateRequest(
   const cookies = parseCookies(req.headers.cookie);
   let sessionToken = cookies.get(COOKIE_NAME);
 
+  // Debug logging
+  logAuth(`Cookie header: ${req.headers.cookie ? "present" : "missing"}`);
+  logAuth(`Session token from cookie: ${sessionToken ? "found" : "missing"}`);
+  logAuth(`Host: ${req.headers.host}`);
+
   // 2. Fallback to Authorization header
   if (!sessionToken) {
     const authHeader = req.headers.authorization;
     if (typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
       sessionToken = authHeader.slice(7);
+      logAuth("Session token from Authorization header: found");
     }
   }
 
-  if (!sessionToken) return null;
+  if (!sessionToken) {
+    logAuth("No session token found, returning null");
+    return null;
+  }
 
   const session = await verifySessionToken(sessionToken);
-  if (!session) return null;
+  if (!session) {
+    logAuth("Invalid session token, returning null");
+    return null;
+  }
 
   const user = await db.getUserById(session.userId);
-  return user || null;
+  if (!user) {
+    logAuth("User not found in DB, returning null");
+    return null;
+  }
+
+  logAuth(`User authenticated: ${user.email}`);
+  return user;
 }
 
 function parseCookies(cookieHeader: string | undefined): Map<string, string> {
@@ -148,10 +171,22 @@ export function getSessionCookieOptions(req: Request) {
     req.protocol === "https" ||
     (req.headers["x-forwarded-proto"] || "").toString().toLowerCase() === "https";
 
+  // Extract domain from host header (e.g., "controleponto.tecpontes.com.br" from "controleponto.tecpontes.com.br:443")
+  let domain: string | undefined = undefined;
+  const host = req.headers.host;
+  if (host) {
+    const hostname = host.split(":")[0];
+    // Only set domain for non-localhost domains
+    if (hostname && hostname !== "localhost" && hostname !== "127.0.0.1") {
+      domain = hostname;
+    }
+  }
+
   return {
     httpOnly: true,
     path: "/",
-    sameSite: "lax" as const,
+    domain,
+    sameSite: isSecure ? "none" : "lax",
     secure: isSecure,
   };
 }
